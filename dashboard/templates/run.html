@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Run #{{ run.id }}</title>
+  <style>
+    body { font: 14px/1.5 system-ui, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; color: #222; }
+    pre { background: #fafafa; padding: 1rem; overflow: auto; border: 1px solid #eee; white-space: pre-wrap; }
+    a { color: #246; }
+    dt { font-weight: 600; margin-top: .5rem; }
+  </style>
+</head>
+<body>
+  <p><a href="/">← all</a> · <a href="/candidates/{{ candidate.id }}">← {{ candidate.name }}</a></p>
+  <h1>Run #{{ run.id }} — {{ run.stage }}</h1>
+  <dl>
+    <dt>Status</dt><dd>{{ run.status }}</dd>
+    <dt>Iterations</dt><dd>{{ run.iterations }}</dd>
+    <dt>Cost</dt><dd>${{ "%.4f"|format(run.cost_usd) }}</dd>
+    <dt>Tokens</dt><dd>in {{ run.tokens_in }} / out {{ run.tokens_out }}</dd>
+    <dt>Started</dt><dd>{{ run.started_at }}</dd>
+    <dt>Finished</dt><dd>{{ run.finished_at }}</dd>
+    {% if run.error %}<dt>Error</dt><dd><pre>{{ run.error }}</pre></dd>{% endif %}
+  </dl>
+  {% if spec %}<h2>Spec</h2><pre>{{ spec | tojson(indent=2) }}</pre>{% endif %}
+</body>
+</html>

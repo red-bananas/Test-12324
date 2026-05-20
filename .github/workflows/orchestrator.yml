@@ -1,0 +1,113 @@
+name: orchestrator
+
+on:
+  schedule:
+    - cron: "0 17 * * *"   # 17:00 UTC = DeepSeek off-peak window start
+  workflow_dispatch:
+    inputs:
+      stage:
+        type: choice
+        description: "Pipeline stage to run"
+        options: [discover, triage, monitor, digest, full]
+        default: discover
+      candidate_id:
+        type: string
+        description: "Required for 'full' (runs spec→build→test→deploy on this candidate)"
+        default: ""
+
+concurrency:
+  group: orchestrator
+  cancel-in-progress: false
+
+env:
+  PIPELINE_PAUSED: ${{ secrets.PIPELINE_PAUSED }}
+  DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+  TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
+  GH_PAT: ${{ secrets.GH_PAT }}
+  GH_OWNER: ${{ secrets.GH_OWNER }}
+  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+  TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+  TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+  RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+  NOTIFY_EMAIL_TO: ${{ secrets.NOTIFY_EMAIL_TO }}
+  PRODUCT_HUNT_TOKEN: ${{ secrets.PRODUCT_HUNT_TOKEN }}
+  PLAUSIBLE_API_KEY: ${{ secrets.PLAUSIBLE_API_KEY }}
+  EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+  COST_CAP_RUN_USD: "1.00"
+  COST_CAP_DAY_USD: "2.00"
+  COST_CAP_MONTH_USD: "35.00"
+  ITER_CAP: "6"
+
+jobs:
+  killswitch:
+    runs-on: ubuntu-latest
+    outputs:
+      paused: ${{ steps.check.outputs.paused }}
+    steps:
+      - id: check
+        run: |
+          if [ "${PIPELINE_PAUSED:-false}" = "true" ]; then
+            echo "::warning::PIPELINE_PAUSED=true — halting"
+            echo "paused=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "paused=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  run:
+    needs: killswitch
+    if: needs.killswitch.outputs.paused != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install pipeline + agent
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[agent]"
+
+      - name: Determine stage
+        id: stage
+        run: |
+          STAGE="${{ inputs.stage || 'discover' }}"
+          echo "stage=$STAGE" >> "$GITHUB_OUTPUT"
+
+      - name: Discover (also triggered by cron)
+        if: steps.stage.outputs.stage == 'discover' || github.event_name == 'schedule'
+        run: |
+          auto-app discover --lane all
+          auto-app triage
+
+      - name: Triage only
+        if: steps.stage.outputs.stage == 'triage'
+        run: auto-app triage
+
+      - name: Monitor only
+        if: steps.stage.outputs.stage == 'monitor'
+        run: auto-app monitor
+
+      - name: Digest only
+        if: steps.stage.outputs.stage == 'digest'
+        run: auto-app digest
+
+      - name: Full pipeline for a candidate
+        if: steps.stage.outputs.stage == 'full'
+        run: |
+          if [ -z "${{ inputs.candidate_id }}" ]; then
+            echo "::error::candidate_id required for 'full' stage"
+            exit 1
+          fi
+          auto-app run-all ${{ inputs.candidate_id }}
+
+      - name: Status
+        if: always()
+        run: auto-app status

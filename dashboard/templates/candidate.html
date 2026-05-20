@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>{{ candidate.name }}</title>
+  <style>
+    body { font: 14px/1.5 system-ui, sans-serif; max-width: 1000px; margin: 2rem auto; padding: 0 1rem; color: #222; }
+    h1, h2 { font-weight: 600; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; }
+    th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #eee; }
+    pre { background: #fafafa; padding: 1rem; overflow: auto; border: 1px solid #eee; }
+    a { color: #246; }
+  </style>
+</head>
+<body>
+  <p><a href="/">← all</a></p>
+  <h1>{{ candidate.name }} <small>({{ candidate.lane }})</small></h1>
+  <p>{{ candidate.description }}</p>
+  <p>Source: <a href="{{ candidate.url }}">{{ candidate.url }}</a> · License: {{ candidate.license or "?" }} · Status: {{ candidate.status }}</p>
+
+  <h2>Runs</h2>
+  <table>
+    <thead><tr><th>#</th><th>Stage</th><th>Status</th><th>Iter</th><th>Cost</th><th>Started</th></tr></thead>
+    <tbody>
+    {% for r in runs %}
+      <tr>
+        <td><a href="/runs/{{ r.id }}">{{ r.id }}</a></td>
+        <td>{{ r.stage }}</td>
+        <td>{{ r.status }}</td>
+        <td>{{ r.iterations }}</td>
+        <td>${{ "%.4f"|format(r.cost_usd) }}</td>
+        <td>{{ r.started_at }}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="6">No runs yet.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  {% if spec %}
+    <h2>Spec</h2>
+    <pre>{{ spec | tojson(indent=2) }}</pre>
+  {% endif %}
+</body>
+</html>

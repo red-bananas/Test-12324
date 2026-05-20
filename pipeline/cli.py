@@ -70,6 +70,60 @@ def deploy(clone_id: int) -> None:
 
 
 @app.command()
+def approve(candidate_id: int) -> None:
+    """Mark a candidate as approved (skips the GitHub-issue gate)."""
+    from .state import Approval, Candidate, session
+    from datetime import datetime
+
+    with session() as s:
+        c = s.get(Candidate, candidate_id)
+        if not c:
+            typer.echo(f"candidate {candidate_id} not found")
+            raise typer.Exit(1)
+        c.status = "approved"
+        s.add(
+            Approval(
+                candidate_id=candidate_id,
+                gate="triage",
+                approved_by="cli",
+                approved_at=datetime.utcnow(),
+            )
+        )
+        s.commit()
+    typer.echo(f"approved candidate {candidate_id} ({c.name})")
+
+
+@app.command(name="run-all")
+def run_all(candidate_id: int) -> None:
+    """Run spec → build → test → deploy for an approved candidate."""
+    from .state import Candidate, Clone, session
+    from sqlalchemy import select
+
+    with session() as s:
+        c = s.get(Candidate, candidate_id)
+        if not c:
+            typer.echo(f"candidate {candidate_id} not found")
+            raise typer.Exit(1)
+        if c.status not in ("approved", "spec-ready"):
+            typer.echo(f"candidate {candidate_id} is status={c.status}; approve it first")
+            raise typer.Exit(1)
+
+    spec_stage.run(candidate_id=candidate_id)
+    build_stage.run(candidate_id=candidate_id)
+    with session() as s:
+        clone = s.scalar(
+            select(Clone).where(Clone.candidate_id == candidate_id)
+            .order_by(Clone.id.desc())
+        )
+        if not clone:
+            typer.echo("build did not produce a clone — aborting")
+            raise typer.Exit(1)
+        clone_id = clone.id
+    test_stage.run(clone_id=clone_id)
+    deploy_stage.run(clone_id=clone_id)
+
+
+@app.command()
 def monitor() -> None:
     """Pull Plausible + Firebase metrics into metrics_daily."""
     monitor_stage.run()
