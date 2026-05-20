@@ -9,12 +9,19 @@ from .stages import deploy as deploy_stage
 from .stages import digest as digest_stage
 from .stages import discover as discover_stage
 from .stages import monitor as monitor_stage
+from .stages import seed as seed_stage
 from .stages import spec as spec_stage
 from .stages import test as test_stage
 from .stages import triage as triage_stage
 
 
 app = typer.Typer(no_args_is_help=True, add_completion=False, help="Auto-App pipeline CLI")
+
+
+@app.command()
+def seed() -> None:
+    """Insert curated first-target candidates (Excalidraw / 2048) for the first end-to-end run."""
+    seed_stage.run()
 
 
 @app.command()

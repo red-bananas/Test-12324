@@ -17,7 +17,19 @@ Walking-skeleton in progress. Currently implemented:
 - LLM wrapper (LiteLLM, DeepSeek default, Qwen fallback)
 - GitHub + Resend notification helpers
 - `discover` stage: GitHub trending across both lanes with tractability filters
+- `seed` stage: inserts curated first targets — Excalidraw (web) + 2048 (mobile)
 - `triage|spec|build|test|deploy|monitor|digest`: stubs that print a clear message
+
+## First targets
+
+Day 1 deliberately runs the pipeline against two chosen real apps to debug the loop cleanly. Both ship to production — not throwaway fixtures.
+
+| Lane   | Target     | Why                                                        | License |
+|--------|------------|------------------------------------------------------------|---------|
+| web    | Excalidraw | Iconic frontend-only drawing tool, real utility post-clone | MIT     |
+| mobile | 2048       | Bounded state machine, perfect Skia + Reanimated fit       | MIT     |
+
+`auto-app seed` inserts both into the `candidates` table. Day 2 onward, discovery is live across both lanes.
 
 Next up: triage (GitHub issues + dashboard), spec (DeepSeek), build (Aider loop), templates (Next.js + Expo+Skia), dashboard, GitHub Actions workflows. See `/root/.claude/plans/we-thinking-to-build-precious-thimble.md` for the full plan.
 
