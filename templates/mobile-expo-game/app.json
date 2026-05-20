@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "Clone Game",
+    "slug": "clone-game",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": { "supportsTablet": true, "bundleIdentifier": "app.cloned.game" },
+    "android": { "package": "app.cloned.game" },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-build-properties",
+        { "android": { "minSdkVersion": 24 } }
+      ]
+    ]
+  }
+}

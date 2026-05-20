@@ -19,6 +19,24 @@ _GAME_BACKEND_WORDS = re.compile(
     re.I,
 )
 _GAME_CASUAL_TOPICS = {"puzzle", "casual", "arcade", "2d", "phaser", "minigame"}
+_META_REPO_NAME = re.compile(
+    r"^(awesome[-_].*|.*-list|.*-lists|.*-resources?|.*-tutorials?|.*-examples?|.*-collections?|.*-curated|.*-cheatsheet.*|.*-handbook|.*-book|.*-roadmap)$",
+    re.I,
+)
+_META_REPO_DESC = re.compile(
+    r"\b(awesome list|curated list|cheat ?sheet|tutorial|learning path|roadmap|interview prep|collection of (links|resources))\b",
+    re.I,
+)
+
+
+def _is_meta_repo(repo: dict) -> bool:
+    name = repo.get("name") or ""
+    desc = repo.get("description") or ""
+    if _META_REPO_NAME.match(name):
+        return True
+    if _META_REPO_DESC.search(desc):
+        return True
+    return False
 
 
 def _gh_search(query: str, per_page: int = 30) -> list[dict]:
@@ -87,10 +105,12 @@ def _row(repo: dict, lane: str, score: float, tract: float) -> dict:
 
 def _discover_web(limit: int = 3) -> int:
     since = (datetime.now(timezone.utc) - timedelta(days=60)).strftime("%Y-%m-%d")
-    q = f"stars:>200 pushed:>{since} topic:web-app language:TypeScript"
+    q = f"stars:>200 pushed:>{since} topic:web-app language:TypeScript archived:false"
     repos = _gh_search(q)
     rows: list[dict] = []
     for r in repos:
+        if _is_meta_repo(r):
+            continue
         score, tract = _score_web(r)
         if tract < 0.5:
             continue
@@ -101,10 +121,12 @@ def _discover_web(limit: int = 3) -> int:
 
 def _discover_mobile(limit: int = 3) -> int:
     since = (datetime.now(timezone.utc) - timedelta(days=90)).strftime("%Y-%m-%d")
-    q = f"stars:>100 pushed:>{since} topic:game"
+    q = f"stars:>100 pushed:>{since} topic:game archived:false"
     repos = _gh_search(q)
     rows: list[dict] = []
     for r in repos:
+        if _is_meta_repo(r):
+            continue
         score, tract = _score_mobile(r)
         if tract < 0.5:
             continue
