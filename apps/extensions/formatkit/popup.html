@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FormatKit</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">FK</span>
+        <h1>FormatKit</h1>
+        <span class="privacy-badge" title="All processing happens locally">Offline</span>
+      </div>
+      <div class="topbar-actions">
+        <button type="button" id="themeToggleBtn" class="icon-btn" title="Switch to light mode" aria-label="Switch theme">
+          <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <button type="button" id="settingsBtn" class="icon-btn" title="Settings" aria-label="Settings">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <section class="toolbar-row" aria-label="Editor actions">
+      <div class="toolbar-field-stack">
+        <span class="toolbar-field-label">Source</span>
+        <select id="sourceFormat" class="toolbar-select toolbar-select-sm" aria-label="Source format">
+          <option value="auto">Auto-detect</option>
+          <option value="json">JSON</option>
+          <option value="yaml">YAML</option>
+          <option value="xml">XML</option>
+          <option value="toml">TOML</option>
+          <option value="csv">CSV</option>
+          <option value="sql">SQL</option>
+          <option value="properties">Properties</option>
+        </select>
+      </div>
+      <button type="button" id="formatBtn" class="icon-btn" title="Format (Ctrl+Enter)" aria-label="Format">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <path d="M21 6H3M17 12H7M19 18H5"/>
+        </svg>
+      </button>
+      <button type="button" id="minifyBtn" class="icon-btn" title="Minify" aria-label="Minify">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
+        </svg>
+      </button>
+      <button type="button" id="undoBtn" class="icon-btn" disabled title="Undo (Ctrl+Z)" aria-label="Undo">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <path d="M9 14 4 9l5-5"/><path d="M4 9h10a4 4 0 0 1 4 4v1"/>
+        </svg>
+      </button>
+      <button type="button" id="redoBtn" class="icon-btn" disabled title="Redo (Ctrl+Y)" aria-label="Redo">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <path d="m15 14 5-5-5-5"/><path d="M20 9H10a4 4 0 0 0-4 4v1"/>
+        </svg>
+      </button>
+      <span class="toolbar-divider" aria-hidden="true"></span>
+      <button type="button" id="findToggleBtn" class="icon-btn" title="Find (Ctrl+F)" aria-label="Find in editor">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/>
+        </svg>
+      </button>
+      <button type="button" id="pasteBtn" class="icon-btn" title="Paste and auto-format" aria-label="Paste from clipboard">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/>
+        </svg>
+      </button>
+      <button type="button" id="copyBtn" class="icon-btn icon-btn-accent" title="Copy (Ctrl+Shift+C)" aria-label="Copy">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+        </svg>
+      </button>
+      <button type="button" id="downloadBtn" class="icon-btn" title="Download" aria-label="Download">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+      </button>
+      <button type="button" id="clearBtn" class="icon-btn icon-btn-danger" title="Clear editor" aria-label="Clear editor">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+        </svg>
+      </button>
+      <span class="toolbar-spacer" aria-hidden="true"></span>
+      <div class="toolbar-field-stack">
+        <span class="toolbar-field-label">Convert to</span>
+        <div class="toolbar-field-row">
+          <select id="targetFormat" class="toolbar-select toolbar-select-sm" aria-label="Output format for conversion">
+            <option value="json">JSON</option>
+            <option value="yaml">YAML</option>
+            <option value="xml">XML</option>
+            <option value="toml">TOML</option>
+            <option value="properties">Properties</option>
+          </select>
+          <button type="button" id="convertBtn" class="icon-btn icon-btn-accent" title="Convert" aria-label="Convert">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+              <path d="M5 12h12"/><path d="m13 6 6 6-6 6"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="find-panel hidden" id="findPanel" aria-label="Search and navigation">
+      <input id="searchInput" type="search" placeholder="Search in editor…" autocomplete="off" aria-label="Search in editor" />
+      <span id="searchCount" class="search-count" aria-live="polite"></span>
+      <button type="button" id="searchPrev" class="icon-btn icon-btn-sm" title="Previous match (Shift+Enter)" aria-label="Previous match">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M18 15l-6-6-6 6"/></svg>
+      </button>
+      <button type="button" id="searchNext" class="icon-btn icon-btn-sm" title="Next match (Enter)" aria-label="Next match">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <label class="goto">
+        <span class="field-label">Line</span>
+        <input id="gotoLine" type="number" min="1" placeholder="#" aria-label="Go to line number" />
+        <button type="button" id="gotoBtn" class="btn btn-compact">Go</button>
+      </label>
+      <button type="button" id="findCloseBtn" class="icon-btn icon-btn-sm" title="Close find (Esc)" aria-label="Close find">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </section>
+
+    <div id="pasteBanner" class="paste-banner hidden" role="region" aria-label="Clipboard suggestion">
+      <span>Clipboard looks like structured data.</span>
+      <button type="button" id="pasteBannerBtn" class="btn btn-compact btn-primary">Paste</button>
+      <button type="button" id="pasteBannerDismiss" class="icon-btn icon-btn-sm" aria-label="Dismiss">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <main class="editor-wrap" id="editorWrap">
+      <div class="empty-state" id="emptyState">
+        <p>Paste or type JSON, YAML, XML, and more</p>
+        <button type="button" id="emptyPasteBtn" class="btn btn-primary">Paste from clipboard and format</button>
+      </div>
+      <div class="editor-shell">
+        <div class="line-gutter-wrap" aria-hidden="true">
+          <pre class="line-gutter" id="lineGutter"></pre>
+        </div>
+        <div class="editor-pane" id="editorPane">
+          <div class="editor-inner" id="editorInner">
+            <pre class="editor-highlight" id="highlightLayer" aria-hidden="true"><code id="highlightCode"></code></pre>
+            <textarea id="editor" spellcheck="false" aria-label="Code editor" autocapitalize="off" autocomplete="off" autocorrect="off"></textarea>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="statusbar">
+      <div class="status-row">
+        <div class="status-group">
+          <span id="statusValid" class="status-pill status-valid" aria-live="polite">
+            <span class="status-icon" aria-hidden="true"></span>
+            <span id="statusValidText">—</span>
+          </span>
+          <span id="statusFormat" class="status-format">—</span>
+          <span id="statusMeta">0 lines · 0 chars</span>
+          <span id="statusCopy" class="status-copy hidden" aria-live="polite">Copied ✓</span>
+        </div>
+        <p class="kbd-hints" aria-hidden="true">
+          <kbd>Ctrl</kbd>+<kbd>Enter</kbd> Format · <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd> Copy · <kbd>Ctrl</kbd>+<kbd>F</kbd> Find
+        </p>
+      </div>
+      <p id="statusError" class="status-error hidden" role="alert"></p>
+    </footer>
+  </div>
+
+  <dialog id="settingsDialog" aria-labelledby="settingsTitle">
+    <form id="settingsForm" class="settings-form">
+      <header class="settings-header">
+        <h2 id="settingsTitle">Settings</h2>
+        <p class="settings-subtitle">Editor preferences — theme is toggled from the header</p>
+      </header>
+      <div class="settings-body">
+        <label class="settings-field">
+          <span class="settings-field-label">Indent size</span>
+          <span class="settings-field-hint">Spaces per nesting level</span>
+          <div class="settings-field-control">
+            <input id="indentSetting" type="number" min="1" max="8" step="1" value="2" aria-label="Indent spaces" />
+            <span class="settings-field-unit">spaces</span>
+          </div>
+        </label>
+      </div>
+      <div class="dialog-actions">
+        <button type="submit" class="btn btn-primary">Save</button>
+        <button type="button" id="closeSettings" class="btn btn-ghost">Cancel</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <script src="lib/js-yaml.min.js"></script>
+  <script src="lib/j-toml.min.js"></script>
+  <script src="formats/json.js"></script>
+  <script src="formats/yaml.js"></script>
+  <script src="formats/xml.js"></script>
+  <script src="formats/toml.js"></script>
+  <script src="formats/csv.js"></script>
+  <script src="formats/sql.js"></script>
+  <script src="formats/properties.js"></script>
+  <script src="formats/registry.js"></script>
+  <script src="convert.js"></script>
+  <script src="settings.js"></script>
+  <script src="history.js"></script>
+  <script src="editor-highlight.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

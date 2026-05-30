@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>File Info</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container" id="container">
+    <header class="header">
+      <span class="header-icon" id="fileTypeIcon" aria-hidden="true"></span>
+      <span class="title">File Info</span>
+      <button type="button" class="btn-icon" id="refreshBtn" title="Refresh (F5)" aria-label="Refresh">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+      </button>
+    </header>
+
+    <div class="loading" id="loading">
+      <div class="spinner" aria-hidden="true"></div>
+      <span>Analyzing…</span>
+    </div>
+
+    <div class="empty hidden" id="empty">
+      <p class="empty-title" id="emptyTitle">Nothing to analyze</p>
+      <p class="empty-hint" id="emptyHint">Open an image, PDF, video, or file URL, then try again.</p>
+    </div>
+
+    <div class="error hidden" id="error">
+      <p class="error-title" id="errorTitle">Unable to analyze</p>
+      <p class="error-hint" id="errorHint">Reload the page and try again.</p>
+      <button type="button" class="btn btn-secondary" id="retryBtn">Try again</button>
+    </div>
+
+    <main class="content hidden" id="content">
+      <section class="hero" id="hero">
+        <div class="hero-thumb-wrap hidden" id="thumbWrap">
+          <img class="hero-thumb" id="heroThumb" alt="" width="64" height="64">
+        </div>
+        <div class="hero-text">
+          <div class="file-type-chip" id="fileTypeChip">
+            <span class="chip-icon" id="fileTypeChipIcon"></span>
+            <span class="chip-text" id="fileTypeText">FILE</span>
+          </div>
+          <p class="hero-primary" id="heroPrimary">—</p>
+          <p class="hero-secondary" id="heroSecondary"></p>
+        </div>
+      </section>
+
+      <div class="actions">
+        <button type="button" class="btn btn-primary" id="copyDimsBtn">Copy dimensions</button>
+        <button type="button" class="btn btn-primary" id="downloadBtn">Download</button>
+        <button type="button" class="btn btn-secondary" id="copyBtn">Copy all</button>
+        <button type="button" class="btn btn-secondary" id="exportBtn">Save details</button>
+      </div>
+
+      <section class="info-grid" id="detailsSection">
+        <div class="info-row copyable" id="fileNameRow" data-copy="fileName">
+          <span class="label">Name</span>
+          <span class="value" id="fileName">—</span>
+        </div>
+        <div class="info-row copyable" id="pageTitleRow" data-copy="pageTitle">
+          <span class="label">Title</span>
+          <span class="value" id="pageTitle">—</span>
+        </div>
+        <div class="info-row copyable" id="domainRow" data-copy="domain">
+          <span class="label">Domain</span>
+          <span class="value" id="domain">—</span>
+        </div>
+        <div class="info-row copyable" id="imageCountRow" data-copy="images">
+          <span class="label">Images</span>
+          <span class="value" id="imageCount">—</span>
+        </div>
+        <div class="info-row copyable" id="linkCountRow" data-copy="links">
+          <span class="label">Links</span>
+          <span class="value" id="linkCount">—</span>
+        </div>
+        <div class="info-row copyable" id="fileSizeRow" data-copy="fileSize">
+          <span class="label">Size</span>
+          <span class="value" id="fileSize">—</span>
+        </div>
+        <div class="info-row copyable" id="dimensionsRow" data-copy="dimensions">
+          <span class="label">WxH</span>
+          <span class="value" id="dimensions">—</span>
+        </div>
+        <div class="info-row copyable" id="aspectRatioRow" data-copy="aspectRatio">
+          <span class="label">Ratio</span>
+          <span class="value" id="aspectRatio">—</span>
+        </div>
+        <div class="info-row copyable" id="durationRow" data-copy="duration">
+          <span class="label">Duration</span>
+          <span class="value" id="duration">—</span>
+        </div>
+        <div class="info-row copyable" id="mimeTypeRow" data-copy="mimeType">
+          <span class="label">MIME</span>
+          <span class="value" id="mimeType">—</span>
+        </div>
+        <div class="info-row copyable" id="urlRow" data-copy="url">
+          <span class="label" id="urlLabel">URL</span>
+          <span class="value url" id="fileUrl" title="Click to copy">—</span>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="shared.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

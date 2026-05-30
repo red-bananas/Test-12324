@@ -1,0 +1,10 @@
+{
+  "application": {
+    "name": "FormatKit",
+    "version": "1.0.0"
+  },
+  "users": [
+    { "id": 1, "name": "Ada", "active": true },
+    { "id": 2, "name": "Bob", "active": false }
+  ]
+}

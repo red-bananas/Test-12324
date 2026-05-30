@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>UTC Clock Pro (with seconds, never stop)</title>
+  <style>
+    html {
+      overflow: hidden;
+    }
+    html::-webkit-scrollbar {
+      width: 5px;
+    }
+    html::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    html::-webkit-scrollbar-thumb {
+      background: #484F58;
+      border-radius: 4px;
+    }
+    html::-webkit-scrollbar-thumb:hover {
+      background: #6E7681;
+    }
+    html::-webkit-scrollbar-button {
+      display: none;
+      height: 0;
+      width: 0;
+    }
+    body {
+      width: 280px;
+      min-width: 240px;
+      max-width: 320px;
+      max-height: 600px;
+      padding: 8px 0 8px 8px;
+      font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', 'Courier New', monospace;
+      text-align: center;
+      background-color: #0D1117;
+      color: #58A6FF;
+      margin: 0;
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+    body.panel-open {
+      display: flex;
+      flex-direction: column;
+    }
+    .container {
+      padding: 0;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    body.panel-open .container {
+      flex: 1;
+      min-height: 0;
+    }
+    #clocks-container {
+      flex: 0 1 auto;
+      max-height: 420px;
+      overflow-x: hidden;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: #484F58 transparent;
+      margin-right: 0;
+      padding-right: 0;
+    }
+    body.panel-open #clocks-container {
+      flex: 1 1 auto;
+      min-height: 72px;
+      max-height: none;
+    }
+    #clocks-container::-webkit-scrollbar {
+      width: 5px;
+    }
+    #clocks-container::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    #clocks-container::-webkit-scrollbar-thumb {
+      background: #484F58;
+      border-radius: 4px;
+    }
+    #clocks-container::-webkit-scrollbar-thumb:hover {
+      background: #6E7681;
+    }
+    #clocks-container::-webkit-scrollbar-button {
+      display: none;
+      height: 0;
+      width: 0;
+    }
+    .popup-footer {
+      flex-shrink: 0;
+      margin-top: 0;
+      padding: 4px 8px 4px 0;
+      border-top: 1px solid #30363D;
+      background: #0D1117;
+    }
+    body.panel-open .popup-footer {
+      padding-bottom: 6px;
+    }
+    body.panel-open .add-clock-bar {
+      display: none;
+    }
+    .clock-container {
+      position: relative;
+      padding: 2px 4px 2px 22px;
+      border-bottom: 1px solid #30363D;
+      border-radius: 4px;
+      margin-top: 4px;
+      overflow-x: hidden;
+      overflow-y: hidden;
+      transition: background-color 0.3s ease, opacity 0.2s ease;
+    }
+    #clocks-container .clock-container:last-child {
+      border-bottom: none;
+    }
+    .clock-container.is-dragging {
+      opacity: 0.45;
+    }
+    .clock-container.drag-over {
+      box-shadow: inset 0 2px 0 #FFCC00;
+    }
+    #clocks-container.single-clock .drag-handle {
+      display: none;
+    }
+    #clocks-container.single-clock .clock-container {
+      padding-left: 4px;
+    }
+    .icon-clock-label {
+      position: absolute;
+      right: 8px;
+      top: 4px;
+      z-index: 3;
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 600;
+      color: #8B949E;
+      background: rgba(48, 54, 61, 0.55);
+      border: 1px solid #30363D;
+      border-radius: 3px;
+      padding: 1px 6px;
+      line-height: 1.3;
+    }
+    .drag-handle {
+      position: absolute;
+      left: 2px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 32px;
+      padding: 0;
+      border: none;
+      border-radius: 4px;
+      background: transparent;
+      color: #8B949E;
+      cursor: grab;
+      touch-action: none;
+      user-select: none;
+      z-index: 5;
+    }
+    .drag-handle svg {
+      fill: currentColor;
+      pointer-events: none;
+    }
+    .drag-handle:hover {
+      color: #C9D1D9;
+      background: rgba(48, 54, 61, 0.45);
+    }
+    .drag-handle:active,
+    .clock-container.is-dragging .drag-handle {
+      cursor: grabbing;
+      color: #FFCC00;
+    }
+    .clock-container::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 60px;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(13, 17, 23, 0.8));
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+    }
+    .clock-container:hover:not(.is-editing) {
+      background-color: rgba(48, 54, 61, 0.3);
+    }
+    .clock-container:hover:not(.is-editing)::before {
+      opacity: 1;
+    }
+    .time-utc-wrapper {
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      flex-wrap: nowrap;
+      gap: 4px;
+      margin-bottom: 6px;
+      padding: 0 2px;
+    }
+    .utc-badge {
+      background-color: #FFCC00;
+      color: #0D1117;
+      font-size: 12px;
+      font-weight: bold;
+      padding: 2px 6px;
+      border-radius: 3px;
+      margin-left: 8px;
+      margin-bottom: 6px;
+    }
+    .clock {
+      font-size: 36px;
+      font-weight: bold;
+      margin: 0;
+      color: #FFCC00;
+      text-shadow: 0 0 8px rgba(255, 123, 114, 0.3);
+      font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', 'Courier New', monospace;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.15;
+      white-space: nowrap;
+      display: inline-block;
+      min-width: 11.5ch;
+      text-align: center;
+      flex-shrink: 0;
+    }
+    .date {
+      font-size: 16px;
+      margin: 8px 0 4px 0;
+      color: #E2E4E8;
+      font-weight: 500;
+      background-color: rgba(255, 255, 255, 0.05);
+      padding: 4px;
+      border-radius: 4px;
+    }
+    .toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 0;
+      border-top: none;
+      padding-top: 6px;
+    }
+    .footer-toggles {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-top: 6px;
+    }
+    .toggle-pair {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    .toggle-pair .toggle-label {
+      white-space: nowrap;
+    }
+    .format-toggle-pair {
+      flex-shrink: 0;
+    }
+    .format-segment {
+      display: inline-flex;
+      flex-shrink: 0;
+      border: 1px solid #30363D;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .format-segment-btn {
+      border: none;
+      background: #21262D;
+      color: #8B949E;
+      font-size: 11px;
+      font-weight: 600;
+      font-family: 'Consolas', monospace;
+      padding: 4px 0;
+      width: 36px;
+      cursor: pointer;
+      line-height: 1.2;
+    }
+    .format-segment-btn.is-active {
+      background: #FFCC00;
+      color: #0D1117;
+    }
+    .format-segment-btn + .format-segment-btn {
+      border-left: 1px solid #30363D;
+    }
+    .format-segment-btn:hover:not(.is-active) {
+      color: #E2E4E8;
+      background: #30363D;
+    }
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 34px;
+      height: 18px;
+    }
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #30363D;
+      transition: background-color 0.2s ease;
+      border-radius: 34px;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 12px;
+      width: 12px;
+      left: 3px;
+      bottom: 3px;
+      background-color: #FFCC00;
+      transition: transform 0.2s ease;
+      border-radius: 50%;
+    }
+    .no-transition {
+      transition: none !important;
+    }
+    input:checked + .slider {
+      background-color: #ffcc00ac;
+    }
+    input:checked + .slider:before {
+      transform: translateX(16px);
+    }
+    .toggle-label {
+      font-size: 12px;
+      font-weight: 500;
+      font-family: 'Consolas';
+      color: #E2E4E8;
+    }
+    .add-clock-bar {
+      border-bottom: 1px solid #30363D;
+      margin: 0 -8px 6px 0;
+    }
+    .add-clock {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      background: transparent;
+      color: #8B949E;
+      border: none;
+      padding: 6px 0;
+      border-radius: 0;
+      cursor: pointer;
+      margin: 0;
+      width: 100%;
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 1;
+      box-shadow: none;
+      transition: color 0.2s ease;
+    }
+    .add-clock:hover:not(:disabled) {
+      background: transparent;
+      color: #FFCC00;
+    }
+    .add-clock:disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
+    .timezone-panel {
+      margin-top: 0;
+      margin-bottom: 6px;
+      padding: 4px 0 8px;
+      border: none;
+      border-radius: 0;
+      background: transparent;
+      box-sizing: border-box;
+    }
+    .timezone-panel .timezone-select {
+      font-size: 11px;
+      line-height: 1.35;
+      padding: 6px 8px;
+    }
+    .panel-preview {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin: 8px 0 2px;
+    }
+    .panel-preview-meta {
+      font-size: 11px;
+      color: #8B949E;
+      margin-bottom: 10px;
+      line-height: 1.35;
+      word-break: break-word;
+    }
+    .panel-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 2px;
+    }
+    .timezone-panel.hidden {
+      display: none;
+    }
+    .panel-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #E2E4E8;
+      text-align: left;
+      margin: 0 0 8px 0;
+    }
+    .panel-preview-time {
+      font-size: 24px;
+      font-weight: bold;
+      color: #FFCC00;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+      display: inline-block;
+      min-width: 11.5ch;
+      text-align: center;
+      flex-shrink: 0;
+    }
+    .panel-preview-chip {
+      display: inline-block;
+      background: #FFCC00;
+      color: #222;
+      font-size: 11px;
+      font-weight: bold;
+      border-radius: 4px;
+      padding: 2px 6px;
+    }
+    .panel-error {
+      color: #f85149;
+      font-size: 11px;
+      margin: 0 0 8px 0;
+      text-align: center;
+    }
+    .panel-ok-btn, .panel-cancel-btn {
+      flex: 1;
+      border: none;
+      padding: 8px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .panel-ok-btn {
+      background-color: #238636;
+      color: #fff;
+    }
+    .panel-ok-btn:hover {
+      background-color: #2ea043;
+    }
+    .panel-cancel-btn {
+      background-color: #30363D;
+      color: #E2E4E8;
+    }
+    .panel-cancel-btn:hover {
+      background-color: #3F444C;
+    }
+    .clock-container.is-editing {
+      outline: 1px solid #FFCC00;
+      outline-offset: -1px;
+      background-color: rgba(255, 204, 0, 0.06);
+    }
+    .timezone-select {
+      background-color: #0D1117;
+      color: #E2E4E8;
+      border: 1px solid #30363D;
+      padding: 4px 8px;
+      border-radius: 4px;
+      margin: 4px 0;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      scrollbar-width: thin;
+      scrollbar-color: #484F58 transparent;
+    }
+    .timezone-select::-webkit-scrollbar {
+      width: 5px;
+    }
+    .timezone-select::-webkit-scrollbar-thumb {
+      background: #484F58;
+      border-radius: 4px;
+    }
+    .clock-edit-dropdown {
+      width: 100%;
+      box-sizing: border-box;
+      overflow: hidden;
+    }
+    .custom-time {
+      background-color: #0D1117;
+      color: #E2E4E8;
+      border: 1px solid #30363D;
+      padding: 4px 8px;
+      border-radius: 4px;
+      margin: 4px 0;
+      width: 100%;
+    }
+    .clock-controls {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+      z-index: 10;
+    }
+    .clock-container:hover:not(.is-editing) .clock-controls,
+    .clock-container.show-controls-hint .clock-controls {
+      opacity: 1;
+    }
+    .clock-container.is-editing .clock-controls {
+      display: none !important;
+    }
+    .edit-btn, .delete-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: rgba(48, 54, 61, 0.9);
+      color: #E2E4E8;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transform: translateX(16px);
+      transition: all 0.2s ease;
+      backdrop-filter: blur(4px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+    .delete-btn:disabled {
+      display: none;
+    }
+    .clock-container:hover:not(.is-editing) .edit-btn,
+    .clock-container:hover:not(.is-editing) .delete-btn,
+    .clock-container.show-controls-hint .edit-btn,
+    .clock-container.show-controls-hint .delete-btn {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    .edit-btn svg, .delete-btn svg {
+      width: 16px;
+      height: 16px;
+      fill: #E2E4E8;
+      display: block;
+      transition: fill 0.2s ease;
+    }
+    .delete-btn:hover svg {
+      fill: #f85149;
+    }
+    .edit-btn:hover svg, .delete-btn:hover svg {
+      fill: #f85149;
+    }
+    .clock-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+      padding: 0 2px;
+      min-height: 8px;
+    }
+    .clock-container.is-editing,
+    .clock-container.is-editing::before {
+      background: none !important;
+      background-color: transparent !important;
+      opacity: 1 !important;
+      box-shadow: none !important;
+    }
+    .dropdown-error {
+      color: #f85149;
+      font-size: 11px;
+      margin: 4px 0;
+      text-align: center;
+    }
+    .dropdown-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 4px;
+    }
+    .ok-btn, .cancel-btn {
+      background-color: #30363D;
+      color: #E2E4E8;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .ok-btn:hover, .cancel-btn:hover {
+      background-color: #3F444C;
+    }
+    .edit-dialog {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(13, 17, 23, 0.95);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 16px;
+      border-radius: 4px;
+      z-index: 1000;
+    }
+    .edit-dialog button {
+      background-color: #30363D;
+      color: #E2E4E8;
+      border: none;
+      padding: 8px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .edit-dialog button:hover {
+      background-color: #3F444C;
+    }
+    .edit-dialog .save-btn {
+      background-color: #238636;
+    }
+    .edit-dialog .save-btn:hover {
+      background-color: #2ea043;
+    }
+    .edit-dialog .cancel-btn {
+      background-color: #da3633;
+    }
+    .edit-dialog .cancel-btn:hover {
+      background-color: #f85149;
+    }
+    .add-clock-icon {
+      font-size: 14px;
+      line-height: 1;
+      margin-right: 2px;
+    }
+    .tz-chip {
+      display: inline-block;
+      background: #FFCC00;
+      color: #222;
+      font-size: 13px;
+      font-weight: bold;
+      border-radius: 4px;
+      padding: 2px 7px 2px 7px;
+      margin-left: 8px;
+      vertical-align: super;
+      margin-bottom: 6px;
+      letter-spacing: 0.5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="clocks-container"></div>
+    <div class="popup-footer">
+      <div id="timezone-panel" class="timezone-panel hidden" aria-hidden="true">
+      <div class="panel-title" id="panel-title">Add clock</div>
+      <select class="timezone-select" id="timezone-picker"></select>
+      <div class="panel-preview">
+        <span class="panel-preview-time" id="panel-preview-time">00:00:00</span>
+        <span class="panel-preview-chip" id="panel-preview-chip">UTC</span>
+      </div>
+      <div class="panel-preview-meta" id="panel-preview-meta">UTC / GMT</div>
+      <div class="panel-error" id="panel-error" hidden></div>
+      <div class="panel-actions">
+        <button type="button" class="panel-ok-btn" id="panel-ok-btn">Add</button>
+        <button type="button" class="panel-cancel-btn" id="panel-cancel-btn">Cancel</button>
+      </div>
+    </div>
+    <div class="add-clock-bar">
+      <button type="button" class="add-clock" id="add-clock-btn">
+        <span class="add-clock-icon">+</span> Add clock
+      </button>
+    </div>
+    <div class="footer-toggles">
+      <div class="toggle-pair">
+        <span class="toggle-label">Show seconds</span>
+        <label class="switch">
+          <input type="checkbox" id="seconds-toggle" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="toggle-pair format-toggle-pair">
+        <div class="format-segment" role="group" aria-label="Time format">
+          <button type="button" class="format-segment-btn" id="format-12h-btn" aria-pressed="false">12h</button>
+          <button type="button" class="format-segment-btn is-active" id="format-24h-btn" aria-pressed="true">24h</button>
+        </div>
+      </div>
+    </div>
+    </div>
+  </div>
+  <script src="timezones.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html> 

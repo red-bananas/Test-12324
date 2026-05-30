@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "FormatKit — JSON, YAML, XML, TOML, CSV & SQL Formatter",
+  "version": "2.0.0",
+  "description": "Format, minify, validate, and convert JSON, YAML, XML, TOML, CSV, SQL, and properties. Works offline in one popup.",
+  "icons": {
+    "16": "icons/png/icon16.png",
+    "48": "icons/png/icon48.png",
+    "128": "icons/png/icon128.png"
+  },
+  "permissions": [
+    "storage",
+    "clipboardRead",
+    "contextMenus",
+    "activeTab",
+    "scripting"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "FormatKit",
+    "default_icon": {
+      "16": "icons/png/icon16.png",
+      "48": "icons/png/icon48.png",
+      "128": "icons/png/icon128.png"
+    }
+  }
+}

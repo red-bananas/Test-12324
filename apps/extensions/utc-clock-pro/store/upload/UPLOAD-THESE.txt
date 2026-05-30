@@ -1,0 +1,15 @@
+Upload ONLY files from this folder (store/upload/).
+
+Screenshots (1280 x 800) — upload up to 5:
+  screenshot-1-icon-clock-multi-view.jpg  (or .png)
+  screenshot-2-seconds-in-logo.jpg        (or .png)
+
+Small promo tile (440 x 280) — cropped from screenshot 1:
+  promo-small-440x280.jpg                 (or .png)
+
+Store icon (128 x 128):
+  store-icon-128x128.jpg                  (or .png)
+
+DO NOT upload anything from store/source/ — wrong sizes (1280x720 etc.).
+
+If PNG fails in dashboard, use the .jpg versions (same dimensions).

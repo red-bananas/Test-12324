@@ -1,0 +1,60 @@
+name: Extensions CI
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "apps/extensions/**"
+      - "tools/extensions/**"
+      - ".github/workflows/extensions-ci.yml"
+  pull_request:
+    branches: [main, master]
+    paths:
+      - "apps/extensions/**"
+      - "tools/extensions/**"
+      - ".github/workflows/extensions-ci.yml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Validate all extensions
+        run: node tools/extensions/validate.mjs
+
+  build:
+    runs-on: ubuntu-latest
+    needs: validate
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build all extension zips
+        run: node tools/extensions/zip-all.mjs
+
+      - name: Install test dependencies
+        run: npm ci || npm install
+
+      - name: Unit tests
+        run: npm run test:extensions
+
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: E2E extension tests
+        run: npm run test:e2e:extensions
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-zips
+          path: dist/**/*.zip
+          if-no-files-found: error

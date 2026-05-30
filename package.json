@@ -1,0 +1,25 @@
+{
+  "name": "auto-app-extensions",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "validate": "node tools/extensions/validate.mjs",
+    "validate:utc": "node tools/extensions/validate.mjs utc-clock-pro",
+    "validate:file-info": "node tools/extensions/validate.mjs file-info",
+    "validate:formatkit": "node tools/extensions/validate.mjs formatkit",
+    "test:extensions": "node --test tools/extensions/tests/**/*.test.mjs",
+    "test:e2e:extensions": "playwright test --config tools/extensions/playwright.config.mjs",
+    "test:e2e:formatkit": "playwright test --config tools/extensions/playwright.config.mjs",
+    "zip:all": "node tools/extensions/zip-all.mjs",
+    "zip:utc": "node tools/extensions/zip.mjs utc-clock-pro",
+    "zip:file-info": "node tools/extensions/zip.mjs file-info",
+    "zip:formatkit": "node tools/extensions/zip.mjs formatkit",
+    "gh:install": "powershell -ExecutionPolicy Bypass -File tools/extensions/install-gh.ps1",
+    "gh:auth": "powershell -ExecutionPolicy Bypass -File tools/extensions/gh-auth.ps1",
+    "gh:status": "powershell -ExecutionPolicy Bypass -File tools/extensions/github-status.ps1",
+    "release:utc": "powershell -ExecutionPolicy Bypass -File tools/extensions/github-release.ps1 -Extension utc-clock-pro -Version 2.0.2 -Watch"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.55.1"
+  }
+}

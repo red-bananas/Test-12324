@@ -1,0 +1,20 @@
+{
+  "extensions": {
+    "utc-clock-pro": {
+      "dir": "apps/extensions/utc-clock-pro",
+      "displayName": "UTC Clock Pro",
+      "chromeWebStoreId": "ihnkfiacnefbigkmolfnelfnepmhmlan",
+      "extensionIdSecret": "UTC_CLOCK_EXTENSION_ID"
+    },
+    "file-info": {
+      "dir": "apps/extensions/file-info",
+      "displayName": "File Info",
+      "extensionIdSecret": "FILE_INFO_EXTENSION_ID"
+    },
+    "formatkit": {
+      "dir": "apps/extensions/formatkit",
+      "displayName": "FormatKit",
+      "extensionIdSecret": "FORMATKIT_EXTENSION_ID"
+    }
+  }
+}

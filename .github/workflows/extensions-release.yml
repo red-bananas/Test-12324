@@ -1,0 +1,132 @@
+name: Release Extension
+
+on:
+  push:
+    tags:
+      - "*@v*.*"
+  workflow_dispatch:
+    inputs:
+      extension:
+        description: Extension slug
+        required: true
+        type: choice
+        options:
+          - utc-clock-pro
+          - file-info
+          - formatkit
+      version:
+        description: Version (e.g. 2.1)
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Resolve slug and version
+        id: meta
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "slug=${{ github.event.inputs.extension }}" >> "$GITHUB_OUTPUT"
+            echo "version=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            TAG="${GITHUB_REF_NAME}"
+            echo "slug=${TAG%%@*}" >> "$GITHUB_OUTPUT"
+            echo "version=${TAG#*@v}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Sync manifest version
+        run: |
+          SLUG="${{ steps.meta.outputs.slug }}"
+          VERSION="${{ steps.meta.outputs.version }}"
+          DIR=$(node -pe "JSON.parse(require('fs').readFileSync('tools/extensions/extensions.json','utf8')).extensions['$SLUG'].dir")
+          node -e "
+            const fs = require('fs');
+            const manifest = JSON.parse(fs.readFileSync('$DIR/manifest.json', 'utf8'));
+            manifest.version = '$VERSION';
+            fs.writeFileSync('$DIR/manifest.json', JSON.stringify(manifest, null, 2) + '\n');
+          "
+
+      - name: Validate and build
+        run: |
+          node tools/extensions/validate.mjs "${{ steps.meta.outputs.slug }}"
+          node tools/extensions/zip.mjs "${{ steps.meta.outputs.slug }}"
+
+      - name: Check Chrome Web Store secrets
+        env:
+          CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
+          CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
+          CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
+          UTC_CLOCK_EXTENSION_ID: ${{ secrets.UTC_CLOCK_EXTENSION_ID }}
+          FILE_INFO_EXTENSION_ID: ${{ secrets.FILE_INFO_EXTENSION_ID }}
+          FORMATKIT_EXTENSION_ID: ${{ secrets.FORMATKIT_EXTENSION_ID }}
+        run: |
+          set -e
+          missing=0
+
+          if [ -z "$CHROME_CLIENT_ID" ]; then echo "::error::Missing GitHub secret CHROME_CLIENT_ID"; missing=1; fi
+          if [ -z "$CHROME_CLIENT_SECRET" ]; then echo "::error::Missing GitHub secret CHROME_CLIENT_SECRET"; missing=1; fi
+          if [ -z "$CHROME_REFRESH_TOKEN" ]; then echo "::error::Missing GitHub secret CHROME_REFRESH_TOKEN"; missing=1; fi
+
+          case "${{ steps.meta.outputs.slug }}" in
+            utc-clock-pro)
+              if [ -z "$UTC_CLOCK_EXTENSION_ID" ]; then
+                echo "::error::Missing GitHub secret UTC_CLOCK_EXTENSION_ID"
+                missing=1
+              fi
+              ;;
+            file-info)
+              if [ -z "$FILE_INFO_EXTENSION_ID" ]; then echo "::error::Missing GitHub secret FILE_INFO_EXTENSION_ID"; missing=1; fi
+              ;;
+            formatkit)
+              if [ -z "$FORMATKIT_EXTENSION_ID" ]; then echo "::error::Missing GitHub secret FORMATKIT_EXTENSION_ID"; missing=1; fi
+              ;;
+          esac
+
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Verify Chrome Web Store item access
+        env:
+          CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
+          CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
+          CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
+          UTC_CLOCK_EXTENSION_ID: ${{ secrets.UTC_CLOCK_EXTENSION_ID }}
+          FILE_INFO_EXTENSION_ID: ${{ secrets.FILE_INFO_EXTENSION_ID }}
+          FORMATKIT_EXTENSION_ID: ${{ secrets.FORMATKIT_EXTENSION_ID }}
+        run: node tools/extensions/verify-cws-item.mjs "${{ steps.meta.outputs.slug }}"
+
+      - name: Upload and publish to Chrome Web Store
+        env:
+          CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
+          CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
+          CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
+          UTC_CLOCK_EXTENSION_ID: ${{ secrets.UTC_CLOCK_EXTENSION_ID }}
+          FILE_INFO_EXTENSION_ID: ${{ secrets.FILE_INFO_EXTENSION_ID }}
+          FORMATKIT_EXTENSION_ID: ${{ secrets.FORMATKIT_EXTENSION_ID }}
+        run: node tools/extensions/publish-cws.mjs "${{ steps.meta.outputs.slug }}"
+
+      - name: Commit version bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add apps/extensions/
+          git diff --staged --quiet || git commit -m "chore(release): ${{ steps.meta.outputs.slug }} v${{ steps.meta.outputs.version }}"
+          git push origin HEAD:master || git push origin HEAD:main || true
+
+      - name: GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event_name == 'push' && github.ref_name || format('{0}@v{1}', steps.meta.outputs.slug, steps.meta.outputs.version) }}
+          name: ${{ steps.meta.outputs.slug }} v${{ steps.meta.outputs.version }}
+          files: dist/${{ steps.meta.outputs.slug }}/${{ steps.meta.outputs.slug }}.zip
+          generate_release_notes: true
