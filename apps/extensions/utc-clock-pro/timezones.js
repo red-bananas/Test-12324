@@ -334,6 +334,36 @@ function formatTimeInTimezone(date, tzValue, options) {
   return date.toLocaleTimeString('en-US', { ...options, timeZone: getIanaTimeZone(tzValue) });
 }
 
+function formatTimePartsInTimezone(date, tzValue, { hour12 = false } = {}) {
+  const options = {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12,
+  };
+
+  const entry = findTimezoneEntry(migrateTimezoneValue(tzValue));
+  let parts;
+
+  if (entry?.fixedOffsetMinutes != null) {
+    const zoned = getFixedZonedDate(date, entry.fixedOffsetMinutes);
+    parts = new Intl.DateTimeFormat('en-US', { ...options, timeZone: 'UTC' }).formatToParts(zoned);
+  } else {
+    parts = new Intl.DateTimeFormat('en-US', {
+      ...options,
+      timeZone: getIanaTimeZone(tzValue),
+    }).formatToParts(date);
+  }
+
+  const read = (type) => parts.find((part) => part.type === type)?.value || '';
+  const ampm = hour12 ? read('dayPeriod').toUpperCase() : '';
+
+  return {
+    time: `${read('hour')}:${read('minute')}:${read('second')}`,
+    ampm,
+  };
+}
+
 function formatDateInTimezone(date, tzValue, options) {
   const entry = findTimezoneEntry(migrateTimezoneValue(tzValue));
 

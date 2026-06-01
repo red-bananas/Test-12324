@@ -3,13 +3,17 @@ let use24HourFormat = true;
 let panelState = { mode: null, targetTz: null };
 let panelPreviewInterval = null;
 
-function getTimeFormatOptions() {
-  return {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: !use24HourFormat,
-  };
+function splitTimeForDisplay(date, timezone) {
+  return formatTimePartsInTimezone(date, timezone, { hour12: !use24HourFormat });
+}
+
+function applyTimeDisplay(timeElement, ampmElement, date, timezone) {
+  const { time, ampm } = splitTimeForDisplay(date, timezone);
+  timeElement.textContent = time;
+  if (ampmElement) {
+    ampmElement.textContent = ampm;
+    ampmElement.classList.toggle('is-visible', Boolean(ampm));
+  }
 }
 
 const DATE_FORMAT_OPTIONS = {
@@ -19,20 +23,17 @@ const DATE_FORMAT_OPTIONS = {
   day: 'numeric',
 };
 
-function formatTime(date, timezone) {
-  return formatTimeInTimezone(date, timezone, getTimeFormatOptions());
-}
-
 function formatDate(date, timezone) {
   return formatDateInTimezone(date, timezone, DATE_FORMAT_OPTIONS);
 }
 
 function updateClockDisplay(clockContainer, timezone, now = new Date()) {
   const clockElement = clockContainer.querySelector('.clock');
+  const ampmElement = clockContainer.querySelector('.clock-ampm');
   const dateElement = clockContainer.querySelector('.date');
   const tzChip = clockContainer.querySelector('.tz-chip');
 
-  clockElement.textContent = formatTime(now, timezone);
+  applyTimeDisplay(clockElement, ampmElement, now, timezone);
   dateElement.textContent = formatDate(now, timezone);
 
   if (tzChip) {
@@ -62,6 +63,7 @@ function flashControlsHint() {
 function updatePanelPreview(timezone) {
   const now = new Date();
   const timeEl = document.getElementById('panel-preview-time');
+  const ampmEl = document.getElementById('panel-preview-ampm');
   const chipEl = document.getElementById('panel-preview-chip');
   const metaEl = document.getElementById('panel-preview-meta');
 
@@ -69,7 +71,7 @@ function updatePanelPreview(timezone) {
     return;
   }
 
-  timeEl.textContent = formatTime(now, timezone);
+  applyTimeDisplay(timeEl, ampmEl, now, timezone);
   chipEl.textContent = getTimezoneShortName(timezone, now);
   metaEl.textContent = getTimezoneDisplayName(timezone, now);
 }
@@ -291,7 +293,10 @@ function renderClocks(clocks) {
         ${iconLabelHtml}
       </div>
       <div class="time-utc-wrapper">
-        <div class="clock"></div>
+        <div class="time-display">
+          <div class="clock"></div>
+          <span class="clock-ampm"></span>
+        </div>
         <span class="tz-chip">${getTimezoneShortName(tz)}</span>
       </div>
       <div class="date"></div>

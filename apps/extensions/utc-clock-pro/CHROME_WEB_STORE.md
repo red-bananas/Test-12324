@@ -147,7 +147,7 @@ WHY WE ASK FOR PERMISSIONS
 ```
 • New toggle: switch popup clocks between 12-hour and 24-hour format
 • Toolbar tooltip follows your format choice
-• Same row as “Show seconds” — tap 12h or 24h buttons
+• Footer: Icon seconds toggle + 12h / 24h buttons
 ```
 
 ## Release notes (v2.0.2 — listing refresh)

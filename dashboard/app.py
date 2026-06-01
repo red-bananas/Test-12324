@@ -24,7 +24,7 @@ from pipeline.state import (
 
 
 HERE = Path(__file__).resolve().parent
-templates = Jinja2Templates(directory=HERE / "templates")
+templates = Jinja2Templates(directory=HERE / "views")
 security = HTTPBasic(auto_error=False)
 app = FastAPI(title="Auto-App dashboard")
 

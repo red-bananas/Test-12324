@@ -18,7 +18,7 @@ def run(clone_id: int) -> None:
         s.add(run_row)
         s.commit()
         run_id = run_row.id
-        workdir = Path(clone.repo_url)
+        workdir = Path(clone.workdir)
         lane = clone.lane
 
     if not workdir.exists():

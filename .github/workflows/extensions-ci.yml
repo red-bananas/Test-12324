@@ -24,6 +24,9 @@ jobs:
         with:
           node-version: 20
 
+      - name: Check registry drift
+        run: node tools/check-drift.mjs
+
       - name: Validate all extensions
         run: node tools/extensions/validate.mjs
 

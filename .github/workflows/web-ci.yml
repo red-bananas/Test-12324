@@ -1,0 +1,46 @@
+name: Web CI
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "apps/web/**"
+      - ".github/workflows/web-ci.yml"
+  pull_request:
+    branches: [main, master]
+    paths:
+      - "apps/web/**"
+      - ".github/workflows/web-ci.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Typecheck, test, and build web apps
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          found=0
+          for dir in apps/web/*/; do
+            [ -f "${dir}package.json" ] || continue
+            found=1
+            echo "::group::${dir}"
+            (
+              cd "$dir"
+              npm ci || npm install
+              npm run typecheck
+              npm test
+              npm run build
+            )
+            echo "::endgroup::"
+          done
+          if [ "$found" -eq 0 ]; then
+            echo "No web apps found under apps/web/ — nothing to build."
+          fi

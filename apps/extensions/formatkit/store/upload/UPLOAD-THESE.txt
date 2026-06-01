@@ -1,0 +1,17 @@
+Upload ONLY files from this folder (store/upload/).
+
+Screenshots (1280 x 800):
+  screenshot-1-json-formatted.jpg   (or .png)
+  screenshot-2-json-to-yaml.jpg     (or .png)
+  screenshot-3-flow-yaml.jpg        (or .png)
+  screenshot-4-xml-formatted.jpg    (or .png)
+
+Small promo tile (440 x 280):
+  promo-small-440x280.jpg           (or .png)
+
+Store icon (128 x 128):
+  store-icon-128x128.jpg            (or .png)
+
+Recapture popup shots:
+  node tools/extensions/capture-formatkit-screenshots.mjs
+  python tools/extensions/prepare-store-images.py formatkit

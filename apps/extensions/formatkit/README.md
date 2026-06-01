@@ -26,8 +26,8 @@ Load unpacked: `chrome://extensions` → **Load unpacked** → `apps/extensions/
 ## Release
 
 ```bash
-git tag formatkit@v2.0.0
-git push origin formatkit@v2.0.0
+git tag formatkit@v1.0.0
+git push origin formatkit@v1.0.0
 ```
 
 Store listing copy: [CHROME_WEB_STORE.md](./CHROME_WEB_STORE.md)

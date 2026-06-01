@@ -154,7 +154,7 @@ def run(clone_id: int) -> None:
         s.add(run_row)
         s.commit()
         run_id = run_row.id
-        workdir = Path(clone.repo_url)
+        workdir = Path(clone.workdir)
         lane = clone.lane
         cand_desc = cand.description or ""
         repo_name = _repo_name(cand)

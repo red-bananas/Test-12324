@@ -1,0 +1,8 @@
+slug: clone-mobile-game
+lane: mobile
+origin: manual              # manual | pipeline
+displayName: Clone Mobile Game
+androidPackage: app.autoapp.clonemobilegame
+iosBundleId: app.autoapp.clonemobilegame
+status: scaffold            # scaffold | in-progress | shipped
+monetization: none          # none | tip-ware | freemium | rewarded-ads

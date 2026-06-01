@@ -12,9 +12,13 @@ from sqlalchemy import (
     String,
     Text,
     create_engine,
+    inspect,
+    text,
 )
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
+
+from .paths import DATA_ROOT
 
 
 class Base(DeclarativeBase):
@@ -65,7 +69,8 @@ class Clone(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     candidate_id: Mapped[int] = mapped_column(ForeignKey("candidates.id"))
     lane: Mapped[str] = mapped_column(String(16))
-    repo_url: Mapped[str] = mapped_column(String(512))
+    workdir: Mapped[str] = mapped_column(String(512))
+    repo_url: Mapped[Optional[str]] = mapped_column(String(512), default=None)
     deploy_url: Mapped[Optional[str]] = mapped_column(String(512), default=None)
     artifact_url: Mapped[Optional[str]] = mapped_column(String(512), default=None)  # APK / Expo Go QR
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
@@ -111,12 +116,38 @@ def _build_url() -> str:
     if turso_url and turso_token:
         host = turso_url.replace("libsql://", "").replace("https://", "")
         return f"sqlite+libsql://{host}?authToken={turso_token}&secure=true"
-    os.makedirs("data", exist_ok=True)
-    return "sqlite:///data/local.db"
+    DATA_ROOT.mkdir(parents=True, exist_ok=True)
+    db_path = (DATA_ROOT / "local.db").resolve().as_posix()
+    return f"sqlite:///{db_path}"
 
 
 _engine: Engine | None = None
 _Session = None
+
+
+def _migrate_clone_schema(engine: Engine) -> None:
+    """Add Clone.workdir and relax repo_url for existing SQLite databases."""
+    insp = inspect(engine)
+    if "clones" not insp.get_table_names():
+        return
+    cols = {c["name"] for c in insp.get_columns("clones")}
+    with engine.begin() as conn:
+        if "workdir" not in cols:
+            conn.execute(text("ALTER TABLE clones ADD COLUMN workdir VARCHAR(512)"))
+            if "repo_url" in cols:
+                conn.execute(
+                    text(
+                        "UPDATE clones SET workdir = repo_url "
+                        "WHERE workdir IS NULL AND repo_url IS NOT NULL "
+                        "AND repo_url NOT LIKE 'http%'"
+                    )
+                )
+                conn.execute(
+                    text(
+                        "UPDATE clones SET workdir = '' "
+                        "WHERE workdir IS NULL"
+                    )
+                )
 
 
 def get_engine() -> Engine:
@@ -124,6 +155,7 @@ def get_engine() -> Engine:
     if _engine is None:
         _engine = create_engine(_build_url(), future=True)
         Base.metadata.create_all(_engine)
+        _migrate_clone_schema(_engine)
         _Session = sessionmaker(bind=_engine, expire_on_commit=False)
     return _engine
 

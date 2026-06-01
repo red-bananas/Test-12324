@@ -1,0 +1,10 @@
+{
+  "apps": {
+    "tile-merge": {
+      "dir": "apps/mobile/tile-merge",
+      "displayName": "Tile Merge",
+      "androidPackage": "app.autoapp.tilemerge",
+      "playStoreTrack": "internal"
+    }
+  }
+}

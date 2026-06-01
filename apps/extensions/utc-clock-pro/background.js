@@ -22,7 +22,18 @@ function pad2(value) {
   return value.toString().padStart(2, '0');
 }
 
-function formatBadgeTime(hours, minutes, seconds) {
+function toDisplayHour(hours24) {
+  if (use24HourFormat) {
+    return hours24;
+  }
+
+  const hour12 = hours24 % 12;
+  return hour12 === 0 ? 12 : hour12;
+}
+
+function formatBadgeTime(hours24, minutes, seconds) {
+  const hours = toDisplayHour(hours24);
+
   if (showBadgeSeconds && seconds % 2 === 0) {
     return `${pad2(seconds)}s`;
   }
@@ -235,8 +246,9 @@ chrome.storage.onChanged.addListener(function(changes, area) {
 
   if (changes.use24HourFormat) {
     use24HourFormat = changes.use24HourFormat.newValue ?? true;
+    cachedBadgeText = '';
     lastTitleMinute = -1;
-    updateToolbarTitle();
+    updateBadge();
   }
 });
 

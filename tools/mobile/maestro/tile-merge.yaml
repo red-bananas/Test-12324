@@ -1,0 +1,26 @@
+# Maestro flow — Tile Merge (standalone APK / dev build)
+# Package: app.autoapp.tilemerge
+#
+# Prerequisites:
+#   1. Install Maestro: https://maestro.mobile.dev/docs/getting-started/installing-maestro
+#   2. Install the app on device/emulator (EAS preview APK or Play internal track)
+#
+# Run from repo root:
+#   maestro test tools/mobile/maestro/tile-merge.yaml
+
+appId: app.autoapp.tilemerge
+---
+- launchApp
+- assertVisible: "Tile Merge"
+- assertVisible: "SCORE"
+- assertVisible: "BEST"
+- tapOn: "New game"
+- assertVisible: "Undo"
+- swipe:
+    start: 50%, 60%
+    end: 20%, 60%
+    duration: 300
+- tapOn: "Undo"
+- swipe:
+    direction: DOWN
+    duration: 300

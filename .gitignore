@@ -24,3 +24,4 @@ htmlcov/
 .aider.tags.cache.v3/
 .DS_Store
 clone-spec.json
+.playwright-mcp/

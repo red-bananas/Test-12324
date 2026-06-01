@@ -13,9 +13,17 @@ CWS_SCREENSHOT = (1280, 800)
 CWS_PROMO = (440, 280)
 CWS_ICON = (128, 128)
 BG = (26, 26, 26)
+FORMATKIT_BG = (13, 17, 23)
+FORMATKIT_JPEG_QUALITY = 96
+RESAMPLE = Image.Resampling.LANCZOS
 
 
-def save_cws_image(img: Image.Image, path: Path, *, jpeg_quality: int = 92) -> None:
+def save_cws_image(
+    img: Image.Image,
+    path: Path,
+    *,
+    jpeg_quality: int = 92,
+) -> None:
     """Save RGB image as 24-bit PNG and JPEG (CWS accepts both, no alpha)."""
     rgb = img.convert("RGB")
     if rgb.size != img.size:
@@ -60,22 +68,32 @@ def pad_screenshot(src: Path) -> Image.Image:
 
 
 def make_promo_from_screenshot(screenshot: Image.Image) -> Image.Image:
-    """Derive 440x280 promo tile from screenshot 1 (center crop + resize)."""
+    """Derive 440x280 promo tile from screenshot (center crop + high-quality downscale)."""
+    return _crop_and_resize_to_promo(screenshot)
+
+
+def _crop_and_resize_to_promo(img: Image.Image) -> Image.Image:
     target_w, target_h = CWS_PROMO
     target_ratio = target_w / target_h
-    w, h = screenshot.size
+    w, h = img.size
     src_ratio = w / h
 
     if src_ratio > target_ratio:
         new_w = int(h * target_ratio)
         left = (w - new_w) // 2
-        cropped = screenshot.crop((left, 0, left + new_w, h))
+        cropped = img.crop((left, 0, left + new_w, h))
     else:
         new_h = int(w / target_ratio)
         top = (h - new_h) // 2
-        cropped = screenshot.crop((0, top, w, top + new_h))
+        cropped = img.crop((0, top, w, top + new_h))
 
-    return cropped.resize(CWS_PROMO, Image.Resampling.LANCZOS)
+    return cropped.resize(CWS_PROMO, RESAMPLE)
+
+
+def make_promo_from_popup_source(src: Path, *, bg: tuple[int, int, int] = FORMATKIT_BG) -> Image.Image:
+    """Build promo from high-res popup capture (supersample before final 440×280)."""
+    padded = pad_popup_screenshot(src, bg=bg)
+    return _crop_and_resize_to_promo(padded)
 
 
 def make_icon(icons_dir: Path, logo_src: Path | None) -> Image.Image:
@@ -187,16 +205,142 @@ def build_utc_clock_pro(root: Path) -> None:
     print(f"OK manifest {manifest.relative_to(root)}")
 
 
+def pad_popup_screenshot(src: Path, *, bg: tuple[int, int, int] = FORMATKIT_BG) -> Image.Image:
+    """Fit a popup capture (any size) onto a 1280x800 CWS canvas."""
+    img = Image.open(src).convert("RGBA")
+    target_w, target_h = CWS_SCREENSHOT
+    margin = 80
+    max_w = target_w - margin * 2
+    max_h = target_h - margin * 2
+    scale = min(max_w / img.width, max_h / img.height)
+    new_size = (max(1, int(img.width * scale)), max(1, int(img.height * scale)))
+    if new_size != img.size:
+        img = img.resize(new_size, RESAMPLE)
+    canvas = Image.new("RGBA", CWS_SCREENSHOT, bg + (255,))
+    x = (target_w - img.width) // 2
+    y = (target_h - img.height) // 2
+    canvas.paste(img, (x, y), img)
+    return canvas.convert("RGB")
+
+
+def formatkit_store_icon(ext_dir: Path) -> Image.Image:
+    """Prefer high-res logo mark, then packaged icon128."""
+    candidates = [
+        ext_dir / "store/source/logo-icon-mark.png",
+        ext_dir / "store/icon-128x128.png",
+        ext_dir / "icons/png/icon128.png",
+    ]
+    for path in candidates:
+        if not path.is_file():
+            continue
+        img = Image.open(path).convert("RGBA")
+        if img.width < 64:
+            continue
+        if img.width != img.height:
+            side = min(img.size)
+            left = (img.width - side) // 2
+            top = (img.height - side) // 2
+            img = img.crop((left, top, left + side, top + side))
+        flat = Image.new("RGBA", img.size, FORMATKIT_BG + (255,))
+        flat.alpha_composite(img)
+        return flat.convert("RGB").resize(CWS_ICON, RESAMPLE)
+    raise SystemExit("No FormatKit icon source found — run apply-formatkit-logo.py")
+
+
+def build_formatkit(root: Path) -> None:
+    slug = "formatkit"
+    ext_dir = root / "apps" / "extensions" / slug
+    store_dir = ext_dir / "store"
+    source_dir = store_dir / "source"
+    upload_dir = store_dir / "upload"
+
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    source_dir.mkdir(parents=True, exist_ok=True)
+
+    screenshots = [
+        ("screenshot-1-json-formatted-source.png", "screenshot-1-json-formatted"),
+        ("screenshot-2-json-to-yaml-source.png", "screenshot-2-json-to-yaml"),
+        ("screenshot-3-flow-yaml-source.png", "screenshot-3-flow-yaml"),
+        ("screenshot-4-xml-formatted-source.png", "screenshot-4-xml-formatted"),
+    ]
+
+    first_shot: Image.Image | None = None
+    for src_name, base_name in screenshots:
+        src = source_dir / src_name
+        if not src.is_file():
+            raise SystemExit(
+                f"Missing {src_name}. Run: node tools/extensions/capture-formatkit-screenshots.mjs"
+            )
+        shot = pad_popup_screenshot(src)
+        if first_shot is None:
+            first_shot = shot
+        save_cws_image(shot, upload_dir / base_name, jpeg_quality=FORMATKIT_JPEG_QUALITY)
+        print(f"OK screenshot {upload_dir / base_name}.png")
+
+    if first_shot is None:
+        raise SystemExit("Cannot build promo tile — screenshot 1 missing")
+    first_src = source_dir / screenshots[0][0]
+    promo = make_promo_from_popup_source(first_src)
+    save_cws_image(promo, upload_dir / "promo-small-440x280", jpeg_quality=FORMATKIT_JPEG_QUALITY)
+    print(f"OK promo {upload_dir / 'promo-small-440x280'}.png")
+
+    icon = formatkit_store_icon(ext_dir)
+    save_cws_image(icon, upload_dir / "store-icon-128x128", jpeg_quality=FORMATKIT_JPEG_QUALITY)
+    print(f"OK icon {upload_dir / 'store-icon-128x128'}.png")
+
+    for path in sorted(upload_dir.glob("*.png")):
+        kind = (
+            "screenshot"
+            if path.name.startswith("screenshot")
+            else "promo"
+            if path.name.startswith("promo")
+            else "store-icon"
+        )
+        assert_cws_file(
+            path,
+            {"screenshot": CWS_SCREENSHOT, "promo": CWS_PROMO, "store-icon": CWS_ICON}[kind],
+        )
+
+    manifest = upload_dir / "UPLOAD-THESE.txt"
+    manifest.write_text(
+        "\n".join(
+            [
+                "Upload ONLY files from this folder (store/upload/).",
+                "",
+                "Screenshots (1280 x 800):",
+                "  screenshot-1-json-formatted.jpg   (or .png)",
+                "  screenshot-2-json-to-yaml.jpg     (or .png)",
+                "  screenshot-3-flow-yaml.jpg        (or .png)",
+                "  screenshot-4-xml-formatted.jpg    (or .png)",
+                "",
+                "Small promo tile (440 x 280):",
+                "  promo-small-440x280.jpg           (or .png)",
+                "",
+                "Store icon (128 x 128):",
+                "  store-icon-128x128.jpg            (or .png)",
+                "",
+                "Recapture popup shots:",
+                "  node tools/extensions/capture-formatkit-screenshots.mjs",
+                "  python tools/extensions/prepare-store-images.py formatkit",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    print(f"OK manifest {manifest.relative_to(root)}")
+
+
 def main() -> None:
     root = Path(__file__).resolve().parents[2]
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("slug", nargs="?", default="utc-clock-pro")
     args = parser.parse_args()
 
-    if args.slug != "utc-clock-pro":
+    if args.slug == "utc-clock-pro":
+        build_utc_clock_pro(root)
+    elif args.slug == "formatkit":
+        build_formatkit(root)
+    else:
         raise SystemExit(f"No store image mapping for {args.slug!r}")
-
-    build_utc_clock_pro(root)
 
 
 if __name__ == "__main__":

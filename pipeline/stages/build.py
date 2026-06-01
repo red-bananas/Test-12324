@@ -9,26 +9,18 @@ from pathlib import Path
 from textwrap import dedent
 
 from .. import budgets
+from ..paths import app_dir, scaffold_dir
 from ..state import Candidate, Clone, Run, session
 
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-TEMPLATE_DIR = REPO_ROOT / "templates"
-WORK_ROOT = REPO_ROOT / "data" / "work"
-
-
-def _template_dir(lane: str) -> Path:
-    return TEMPLATE_DIR / ("web-nextjs" if lane == "web" else "mobile-expo-game")
-
-
 def _prepare_workdir(candidate: Candidate) -> Path:
-    workdir = WORK_ROOT / candidate.slug
+    workdir = app_dir(candidate.lane, candidate.slug)
     if workdir.exists():
         shutil.rmtree(workdir)
     workdir.parent.mkdir(parents=True, exist_ok=True)
-    src = _template_dir(candidate.lane)
+    src = scaffold_dir(candidate.lane)
     if not src.exists():
-        raise FileNotFoundError(f"template not found: {src}")
+        raise FileNotFoundError(f"scaffold not found: {src}")
     shutil.copytree(src, workdir)
     (workdir / "clone-spec.json").write_text(candidate.spec_json or "{}")
     return workdir
@@ -149,7 +141,7 @@ def run(candidate_id: int, max_iter: int | None = None) -> None:
         print(f"[build] prepare workdir failed: {e}")
         return
 
-    agent_readme_path = _template_dir(lane) / "README-FOR-AGENT.md"
+    agent_readme_path = scaffold_dir(lane) / "README-FOR-AGENT.md"
     agent_readme = agent_readme_path.read_text() if agent_readme_path.exists() else ""
     model = os.getenv("AUTO_APP_MODEL", "deepseek/deepseek-chat")
 
@@ -192,7 +184,7 @@ def run(candidate_id: int, max_iter: int | None = None) -> None:
                 Clone(
                     candidate_id=candidate_id,
                     lane=lane,
-                    repo_url=str(workdir),
+                    workdir=str(workdir),
                 )
             )
             s.commit()

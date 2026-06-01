@@ -24,7 +24,6 @@
   const searchInput = document.getElementById('searchInput');
   const searchCount = document.getElementById('searchCount');
   const findPanel = document.getElementById('findPanel');
-  const pasteBanner = document.getElementById('pasteBanner');
   const toast = document.getElementById('toast');
   const settingsDialog = document.getElementById('settingsDialog');
   const indentSetting = document.getElementById('indentSetting');
@@ -36,15 +35,21 @@
   let settings = { ...window.FormatKitSettings.DEFAULTS };
   let searchIndex = -1;
   let saveTimer = null;
-  let highlightTimer = null;
   let statusTimer = null;
   let copyTimer = null;
-  let clipboardPreview = '';
   let lastLineCount = 1;
+  let lastActiveLine = 1;
+  let lastLineHeights = [20];
+  let lastLinesArray = [''];
+  let lastMeasuredWidth = 0;
+  let lastPaneWidth = 0;
   let lastEditorHeight = 0;
   let lastEditorWidth = 0;
   let lastHighlightText = '';
   let lastHighlightFormat = '';
+  let lineSyncTimer = null;
+  let resizeTimer = null;
+  let highlightRaf = null;
 
   function indent() {
     return Number(settings.indent) || 2;
@@ -94,14 +99,30 @@
   }
 
   function syncEditorSize() {
-    editor.style.height = '0';
-    editor.style.width = '100%';
-    const contentHeight = editor.scrollHeight;
-    const contentWidth = editor.scrollWidth;
     const paneHeight = editorPane.clientHeight;
     const paneWidth = editorPane.clientWidth;
+    const scrollTop = editorPane.scrollTop;
+    const scrollLeft = editorPane.scrollLeft;
+
+    editor.style.width = '100%';
+    let contentHeight = editor.scrollHeight;
+    let contentWidth = editor.scrollWidth;
 
     if (contentHeight === lastEditorHeight && contentWidth === lastEditorWidth) {
+      return;
+    }
+
+    if (lastEditorHeight === 0 || contentHeight < lastEditorHeight) {
+      editor.style.height = '0';
+      contentHeight = editor.scrollHeight;
+      contentWidth = editor.scrollWidth;
+    }
+
+    if (contentHeight === lastEditorHeight && contentWidth === lastEditorWidth) {
+      editor.style.height = `${contentHeight}px`;
+      editor.style.width = `${Math.max(contentWidth, paneWidth)}px`;
+      editorPane.scrollTop = scrollTop;
+      editorPane.scrollLeft = scrollLeft;
       return;
     }
 
@@ -113,22 +134,131 @@
     highlightLayer.style.width = editor.style.width;
     editorInner.style.minHeight = `${Math.max(contentHeight, paneHeight)}px`;
     editorInner.style.minWidth = editor.style.width;
+    editorPane.scrollTop = scrollTop;
+    editorPane.scrollLeft = scrollLeft;
   }
 
   function syncScroll() {
     lineGutter.style.transform = `translateY(${-editorPane.scrollTop}px)`;
   }
 
-  function updateLineNumbers() {
-    const lineCount = editor.value.length ? editor.value.split('\n').length : 1;
-    if (lineCount !== lastLineCount) {
+  const lineMeasure = document.createElement('div');
+  lineMeasure.className = 'line-measure';
+  lineMeasure.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(lineMeasure);
+
+  function getEditorContentWidth() {
+    const style = window.getComputedStyle(editor);
+    const padLeft = parseFloat(style.paddingLeft) || 0;
+    const padRight = parseFloat(style.paddingRight) || 0;
+    return Math.max(1, editor.clientWidth - padLeft - padRight);
+  }
+
+  function measureLogicalLineHeights(lines) {
+    const width = getEditorContentWidth();
+    lineMeasure.style.width = `${width}px`;
+    const widthChanged = width !== lastMeasuredWidth;
+    lastMeasuredWidth = width;
+
+    return lines.map((line, index) => {
+      if (!widthChanged && lastLinesArray[index] === line && lastLineHeights[index]) {
+        return lastLineHeights[index];
+      }
+      lineMeasure.textContent = line.length ? line : ' ';
+      return lineMeasure.offsetHeight;
+    });
+  }
+
+  function padLineHeights(lineCount) {
+    const heights = lastLineHeights.slice(0, lineCount);
+    while (heights.length < lineCount) {
+      heights.push(LINE_HEIGHT);
+    }
+    return heights;
+  }
+
+  function getEditorLines() {
+    if (!editor.value.length) {
+      return [''];
+    }
+    return editor.value.split('\n');
+  }
+
+  function focusEditorAtEnd() {
+    editor.focus();
+    const end = editor.value.length;
+    editor.setSelectionRange(end, end);
+    updateActiveLine();
+  }
+
+  function getCursorLine() {
+    return editor.value.slice(0, editor.selectionStart).split('\n').length;
+  }
+
+  function updateGutterHeights(lineHeights, activeLine) {
+    const nodes = lineGutter.querySelectorAll('.line-gutter-num');
+    if (nodes.length !== lineHeights.length) {
+      renderLineGutter(lineHeights.length, activeLine, lineHeights);
+      return;
+    }
+    lineHeights.forEach((height, index) => {
+      nodes[index].style.height = `${height}px`;
+    });
+    lastLineHeights = lineHeights;
+  }
+
+  function renderLineGutter(lineCount, activeLine, lineHeights) {
+    lineGutter.innerHTML = Array.from({ length: lineCount }, (_, index) => {
+      const lineNumber = index + 1;
+      const activeClass = lineNumber === activeLine ? ' active' : '';
+      const height = lineHeights[index] || LINE_HEIGHT;
+      return `<span class="line-gutter-num${activeClass}" style="height:${height}px">${lineNumber}</span>`;
+    }).join('');
+    lastActiveLine = activeLine;
+    lastLineHeights = lineHeights;
+  }
+
+  function updateActiveLine() {
+    const activeLine = getCursorLine();
+    if (activeLine === lastActiveLine) {
+      return;
+    }
+    lastActiveLine = activeLine;
+    const lineNodes = lineGutter.querySelectorAll('.line-gutter-num');
+    if (!lineNodes.length) {
+      renderLineGutter(lastLineCount, activeLine, lastLineHeights);
+      return;
+    }
+    lineNodes.forEach((node, index) => {
+      node.classList.toggle('active', index + 1 === activeLine);
+    });
+  }
+
+  function syncLineLayout(options = {}) {
+    const { forceGutterRender = false } = options;
+    const lines = getEditorLines();
+    const lineCount = lines.length;
+    const activeLine = getCursorLine();
+    const lineHeights = measureLogicalLineHeights(lines);
+    lastLinesArray = lines.slice();
+
+    if (forceGutterRender || lineCount !== lastLineCount) {
       lastLineCount = lineCount;
-      lineGutter.textContent = Array.from({ length: lineCount }, (_, i) => i + 1).join('\n');
       lastEditorHeight = 0;
       lastEditorWidth = 0;
+      renderLineGutter(lineCount, activeLine, lineHeights);
+    } else {
+      updateGutterHeights(lineHeights, activeLine);
+      updateActiveLine();
     }
+
     syncEditorSize();
     syncScroll();
+  }
+
+  function scheduleLineSync() {
+    clearTimeout(lineSyncTimer);
+    lineSyncTimer = setTimeout(() => syncLineLayout(), 50);
   }
 
   function refreshHighlight() {
@@ -140,14 +270,16 @@
     lastHighlightText = text;
     lastHighlightFormat = formatId;
     highlightCode.innerHTML = window.FormatKitHighlight.render(text, formatId);
-    lastEditorHeight = 0;
-    lastEditorWidth = 0;
-    updateLineNumbers();
   }
 
   function scheduleHighlight() {
-    clearTimeout(highlightTimer);
-    highlightTimer = setTimeout(refreshHighlight, 120);
+    if (highlightRaf !== null) {
+      return;
+    }
+    highlightRaf = requestAnimationFrame(() => {
+      highlightRaf = null;
+      refreshHighlight();
+    });
   }
 
   function updateEmptyState() {
@@ -165,7 +297,7 @@
     statusMeta.textContent = `${lines} lines · ${text.length} chars`;
     updateEmptyState();
 
-    editorWrap.classList.remove('is-valid', 'is-invalid');
+    editorWrap.classList.remove('is-valid');
     statusError.classList.add('hidden');
     statusError.textContent = '';
     statusValid.className = 'status-pill status-valid';
@@ -194,7 +326,6 @@
         : `${getFormatLabel(sourceFormat.value)}?`;
       statusValidText.textContent = 'Invalid';
       statusValid.classList.add('bad');
-      editorWrap.classList.add('is-invalid');
       statusError.textContent = error.message;
       statusError.classList.remove('hidden');
     }
@@ -202,7 +333,7 @@
 
   function scheduleStatus() {
     clearTimeout(statusTimer);
-    statusTimer = setTimeout(updateStatus, 150);
+    statusTimer = setTimeout(updateStatus, 250);
   }
 
   function scheduleSave() {
@@ -245,8 +376,8 @@
     editor.value = value;
     lastHighlightText = '';
     lastEditorHeight = 0;
-    pasteBanner.classList.add('hidden');
-    updateLineNumbers();
+    lastLinesArray = [];
+    syncLineLayout({ forceGutterRender: true });
     refreshHighlight();
     updateStatus();
     scheduleSave();
@@ -298,7 +429,8 @@
     editor.value = value;
     lastHighlightText = '';
     lastEditorHeight = 0;
-    updateLineNumbers();
+    lastLinesArray = [];
+    syncLineLayout({ forceGutterRender: true });
     refreshHighlight();
     updateStatus();
     scheduleSave();
@@ -358,27 +490,6 @@
       editor.focus();
     } catch {
       showToast('Paste failed — allow clipboard access');
-    }
-  }
-
-  function looksLikeStructuredData(text) {
-    const trimmed = text.trim();
-    if (!trimmed || trimmed.length > 500000) return false;
-    if (trimmed.startsWith('{') || trimmed.startsWith('[')) return true;
-    if (trimmed.startsWith('---') || /^[\w.-]+\s*:/m.test(trimmed)) return true;
-    if (trimmed.startsWith('<')) return true;
-    return false;
-  }
-
-  async function offerClipboardPaste() {
-    if (editor.value.trim()) return;
-    try {
-      const text = await navigator.clipboard.readText();
-      if (!looksLikeStructuredData(text)) return;
-      clipboardPreview = text;
-      pasteBanner.classList.remove('hidden');
-    } catch {
-      /* clipboard not available */
     }
   }
 
@@ -443,8 +554,18 @@
       : `${matches.length} matches`;
   }
 
+  function lineScrollOffset(lineNumber) {
+    let offset = 0;
+    for (let index = 0; index < lineNumber - 1 && index < lastLineHeights.length; index += 1) {
+      offset += lastLineHeights[index];
+    }
+    return offset;
+  }
+
   function scrollToLine(lineNumber) {
-    editorPane.scrollTop = Math.max(0, (lineNumber - 3) * LINE_HEIGHT);
+    const offset = lineScrollOffset(lineNumber);
+    const lineHeight = lastLineHeights[lineNumber - 1] || LINE_HEIGHT;
+    editorPane.scrollTop = Math.max(0, offset - lineHeight * 2);
     syncScroll();
   }
 
@@ -559,15 +680,14 @@
     applyTheme(settings.theme);
     editor.classList.add('wrap');
     highlightLayer.classList.add('wrap');
-    lineGutter.classList.add('wrap');
     editor.style.padding = EDITOR_PAD;
     highlightLayer.style.padding = EDITOR_PAD;
-    updateLineNumbers();
+    lastPaneWidth = editorPane.clientWidth;
+    syncLineLayout({ forceGutterRender: true });
     refreshHighlight();
     updateStatus();
     updateHistoryButtons();
     editor.focus();
-    await offerClipboardPaste();
   }
 
   document.getElementById('minifyBtn').addEventListener('click', () => runAction('minify'));
@@ -578,8 +698,6 @@
   document.getElementById('copyBtn').addEventListener('click', copyOutput);
   document.getElementById('pasteBtn').addEventListener('click', () => pasteInput());
   document.getElementById('emptyPasteBtn').addEventListener('click', () => pasteInput());
-  document.getElementById('pasteBannerBtn').addEventListener('click', () => pasteInput(clipboardPreview));
-  document.getElementById('pasteBannerDismiss').addEventListener('click', () => pasteBanner.classList.add('hidden'));
   document.getElementById('downloadBtn').addEventListener('click', downloadOutput);
   document.getElementById('clearBtn').addEventListener('click', clearEditor);
   document.getElementById('findToggleBtn').addEventListener('click', openFindPanel);
@@ -605,7 +723,15 @@
 
   editor.addEventListener('input', () => {
     searchIndex = -1;
-    updateLineNumbers();
+    const lineCount = getEditorLines().length;
+    updateActiveLine();
+    if (lineCount !== lastLineCount) {
+      lastLineCount = lineCount;
+      lastEditorHeight = 0;
+      lastEditorWidth = 0;
+      renderLineGutter(lineCount, getCursorLine(), padLineHeights(lineCount));
+    }
+    scheduleLineSync();
     scheduleHighlight();
     scheduleStatus();
     scheduleSave();
@@ -622,6 +748,34 @@
   }, { passive: false });
 
   editorPane.addEventListener('scroll', syncScroll, { passive: true });
+
+  new ResizeObserver(() => {
+    const width = editorPane.clientWidth;
+    if (width === lastPaneWidth) {
+      return;
+    }
+    lastPaneWidth = width;
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      lastEditorHeight = 0;
+      lastMeasuredWidth = 0;
+      lastLinesArray = [];
+      syncLineLayout({ forceGutterRender: true });
+    }, 100);
+  }).observe(editorPane);
+
+  editorPane.addEventListener('mousedown', (event) => {
+    if (event.target === editor) return;
+    if (!(event.target === editorPane || event.target === editorInner)) return;
+    event.preventDefault();
+    focusEditorAtEnd();
+  });
+
+  document.addEventListener('selectionchange', () => {
+    if (document.activeElement === editor) {
+      updateActiveLine();
+    }
+  });
 
   sourceFormat.addEventListener('change', () => {
     lastHighlightFormat = '';

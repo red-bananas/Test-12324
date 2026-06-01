@@ -1,0 +1,6 @@
+slug: tile-merge
+lane: mobile
+origin: manual
+displayName: Tile Merge
+androidPackage: app.autoapp.tilemerge
+iosBundleId: app.autoapp.tilemerge

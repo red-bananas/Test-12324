@@ -1,0 +1,7 @@
+slug: clone-web
+lane: web
+origin: manual              # manual | pipeline
+displayName: Clone Web
+status: scaffold            # scaffold | in-progress | shipped
+deploy: vercel
+monetization: none          # none | tip-ware | freemium | rewarded-ads

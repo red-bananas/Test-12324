@@ -14,6 +14,7 @@
     "formatkit": {
       "dir": "apps/extensions/formatkit",
       "displayName": "FormatKit",
+      "chromeWebStoreId": "dgajmljkkmcebpdjakaldpggecdpmdjc",
       "extensionIdSecret": "FORMATKIT_EXTENSION_ID"
     }
   }

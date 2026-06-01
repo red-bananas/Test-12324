@@ -191,6 +191,12 @@
     .clock-container:hover:not(.is-editing)::before {
       opacity: 1;
     }
+    .time-display {
+      display: inline-flex;
+      align-items: flex-end;
+      flex-shrink: 0;
+      gap: 2px;
+    }
     .time-utc-wrapper {
       display: flex;
       align-items: flex-end;
@@ -221,9 +227,30 @@
       line-height: 1.15;
       white-space: nowrap;
       display: inline-block;
-      min-width: 11.5ch;
+      min-width: 8ch;
       text-align: center;
       flex-shrink: 0;
+    }
+    .clock-ampm,
+    .panel-preview-ampm {
+      font-size: 13px;
+      font-weight: 700;
+      font-family: 'Consolas', monospace;
+      color: #FFCC00;
+      line-height: 1;
+      min-width: 2.5ch;
+      text-align: left;
+      margin-bottom: 5px;
+      flex-shrink: 0;
+      visibility: hidden;
+    }
+    .clock-ampm.is-visible,
+    .panel-preview-ampm.is-visible {
+      visibility: visible;
+    }
+    .panel-preview-ampm {
+      font-size: 11px;
+      margin-bottom: 3px;
     }
     .date {
       font-size: 16px;
@@ -244,20 +271,16 @@
     }
     .footer-toggles {
       display: flex;
-      flex-direction: row;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding-top: 6px;
+      flex-direction: column;
+      gap: 8px;
+      padding-top: 8px;
     }
-    .toggle-pair {
+    .footer-row {
       display: flex;
       align-items: center;
-      gap: 8px;
-      min-width: 0;
-    }
-    .toggle-pair .toggle-label {
-      white-space: nowrap;
+      justify-content: space-between;
+      gap: 10px;
+      min-height: 28px;
     }
     .format-toggle-pair {
       flex-shrink: 0;
@@ -276,8 +299,9 @@
       font-size: 11px;
       font-weight: 600;
       font-family: 'Consolas', monospace;
-      padding: 4px 0;
-      width: 36px;
+      padding: 6px 0;
+      min-height: 28px;
+      width: 40px;
       cursor: pointer;
       line-height: 1.2;
     }
@@ -291,6 +315,15 @@
     .format-segment-btn:hover:not(.is-active) {
       color: #E2E4E8;
       background: #30363D;
+    }
+    .format-segment-btn:focus-visible {
+      outline: 2px solid #58A6FF;
+      outline-offset: 1px;
+      z-index: 1;
+    }
+    .switch input:focus-visible + .slider {
+      outline: 2px solid #58A6FF;
+      outline-offset: 2px;
     }
     .switch {
       position: relative;
@@ -337,8 +370,18 @@
     .toggle-label {
       font-size: 12px;
       font-weight: 500;
-      font-family: 'Consolas';
+      font-family: 'Consolas', monospace;
       color: #E2E4E8;
+      white-space: nowrap;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .slider,
+      .slider:before,
+      .clock-container,
+      .edit-btn,
+      .delete-btn {
+        transition: none !important;
+      }
     }
     .add-clock-bar {
       border-bottom: 1px solid #30363D;
@@ -421,7 +464,7 @@
       font-variant-numeric: tabular-nums;
       line-height: 1;
       display: inline-block;
-      min-width: 11.5ch;
+      min-width: 8ch;
       text-align: center;
       flex-shrink: 0;
     }
@@ -665,7 +708,10 @@
       <div class="panel-title" id="panel-title">Add clock</div>
       <select class="timezone-select" id="timezone-picker"></select>
       <div class="panel-preview">
-        <span class="panel-preview-time" id="panel-preview-time">00:00:00</span>
+        <div class="time-display">
+          <span class="panel-preview-time" id="panel-preview-time">00:00:00</span>
+          <span class="panel-preview-ampm" id="panel-preview-ampm"></span>
+        </div>
         <span class="panel-preview-chip" id="panel-preview-chip">UTC</span>
       </div>
       <div class="panel-preview-meta" id="panel-preview-meta">UTC / GMT</div>
@@ -681,15 +727,16 @@
       </button>
     </div>
     <div class="footer-toggles">
-      <div class="toggle-pair">
-        <span class="toggle-label">Show seconds</span>
+      <div class="footer-row">
+        <label class="toggle-label" for="seconds-toggle">Icon seconds</label>
         <label class="switch">
-          <input type="checkbox" id="seconds-toggle" checked>
+          <input type="checkbox" id="seconds-toggle" checked aria-label="Show seconds on toolbar icon badge">
           <span class="slider"></span>
         </label>
       </div>
-      <div class="toggle-pair format-toggle-pair">
-        <div class="format-segment" role="group" aria-label="Time format">
+      <div class="footer-row">
+        <span class="toggle-label" id="format-label">Time</span>
+        <div class="format-segment" role="group" aria-labelledby="format-label">
           <button type="button" class="format-segment-btn" id="format-12h-btn" aria-pressed="false">12h</button>
           <button type="button" class="format-segment-btn is-active" id="format-24h-btn" aria-pressed="true">24h</button>
         </div>

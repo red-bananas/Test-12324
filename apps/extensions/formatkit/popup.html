@@ -3,15 +3,18 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>FormatKit</title>
+  <title>FormatKit — Format & Convert</title>
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
   <div class="app-shell">
     <header class="topbar">
       <div class="brand">
-        <span class="brand-mark" aria-hidden="true">FK</span>
-        <h1>FormatKit</h1>
+        <img class="brand-mark" src="icons/png/icon48.png" width="32" height="32" alt="" aria-hidden="true" />
+        <div class="brand-text">
+          <h1>FormatKit</h1>
+          <span class="brand-subtitle">Format &amp; convert</span>
+        </div>
         <span class="privacy-badge" title="All processing happens locally">Offline</span>
       </div>
       <div class="topbar-actions">
@@ -129,14 +132,6 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
       </button>
     </section>
-
-    <div id="pasteBanner" class="paste-banner hidden" role="region" aria-label="Clipboard suggestion">
-      <span>Clipboard looks like structured data.</span>
-      <button type="button" id="pasteBannerBtn" class="btn btn-compact btn-primary">Paste</button>
-      <button type="button" id="pasteBannerDismiss" class="icon-btn icon-btn-sm" aria-label="Dismiss">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
-      </button>
-    </div>
 
     <main class="editor-wrap" id="editorWrap">
       <div class="empty-state" id="emptyState">

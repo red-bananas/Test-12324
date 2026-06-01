@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Auto-App</title>
+  <script src="https://unpkg.com/htmx.org@2.0.3"></script>
+  <style>
+    body { font: 14px/1.5 system-ui, sans-serif; max-width: 1100px; margin: 2rem auto; padding: 0 1rem; color: #222; }
+    h1, h2 { font-weight: 600; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 2rem; }
+    th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #eee; vertical-align: top; }
+    th { background: #fafafa; font-weight: 600; }
+    .status { padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+    .s-discovered  { background: #eef; color: #335; }
+    .s-triaged     { background: #ffd; color: #663; }
+    .s-approved    { background: #efe; color: #363; }
+    .s-spec-ready  { background: #def; color: #246; }
+    .s-out-of-lane { background: #fee; color: #633; }
+    .lane { font-size: 11px; color: #888; }
+    .cost { font-variant-numeric: tabular-nums; }
+    form { display: inline; }
+    button { padding: 2px 10px; font-size: 12px; cursor: pointer; }
+    a { color: #246; }
+  </style>
+</head>
+<body>
+  <h1>Auto-App</h1>
+
+  <section>
+    <h2>Spend</h2>
+    <table>
+      <tr><th>Last 24h</th><th>Last 30d</th><th>All-time</th></tr>
+      <tr class="cost">
+        <td>${{ "%.4f"|format(spend_day) }}</td>
+        <td>${{ "%.4f"|format(spend_month) }}</td>
+        <td>${{ "%.4f"|format(spend_total) }}</td>
+      </tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>Candidates</h2>
+    <table>
+      <thead>
+        <tr><th>#</th><th>Name</th><th>Lane</th><th>Status</th><th>Tract.</th><th>Source</th><th></th></tr>
+      </thead>
+      <tbody>
+      {% for c in candidates %}
+        <tr>
+          <td>{{ c.id }}</td>
+          <td><a href="/candidates/{{ c.id }}">{{ c.name }}</a></td>
+          <td class="lane">{{ c.lane }}</td>
+          <td><span class="status s-{{ c.status }}">{{ c.status }}</span></td>
+          <td>{{ "%.2f"|format(c.tractability) }}</td>
+          <td><a href="{{ c.url }}">{{ c.source }}</a></td>
+          <td>
+            {% if c.status in ("discovered", "triaged") %}
+              <form method="post" action="/approve/{{ c.id }}">
+                <button type="submit">Approve</button>
+              </form>
+            {% endif %}
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="7">No candidates yet. Run <code>auto-app seed</code> or <code>auto-app discover</code>.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Recent clones</h2>
+    <table>
+      <thead><tr><th>#</th><th>Lane</th><th>Workdir</th><th>Repo</th><th>Deploy</th><th>Artifact</th></tr></thead>
+      <tbody>
+      {% for c in clones %}
+        <tr>
+          <td>{{ c.id }}</td>
+          <td class="lane">{{ c.lane }}</td>
+          <td><code>{{ c.workdir }}</code></td>
+          <td>{% if c.repo_url %}<a href="{{ c.repo_url }}">{{ c.repo_url }}</a>{% else %}—{% endif %}</td>
+          <td>{% if c.deploy_url %}<a href="{{ c.deploy_url }}">{{ c.deploy_url }}</a>{% else %}—{% endif %}</td>
+          <td>{% if c.artifact_url %}<a href="{{ c.artifact_url }}">build</a>{% else %}—{% endif %}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="6">No clones yet.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</body>
+</html>

@@ -1,0 +1,9 @@
+slug: starter-extension
+lane: extensions
+origin: manual              # manual | pipeline
+displayName: Starter Extension
+status: scaffold            # scaffold | in-progress | shipped
+category: productivity      # productivity | developer | privacy | media | fun
+manifestVersion: 3
+monetization: none          # none | tip-ware | freemium | rewarded-ads
+chromeWebStoreId: ""        # filled after first publish
