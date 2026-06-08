@@ -8,9 +8,9 @@ export const monetizationConfig = {
 
 export const APP_VERSION = "1.0.0";
 
-/** Host before Play Store submission — see PRIVACY.md in this app folder. */
+/** Public privacy policy — GitHub Pages (Play Console requires stable HTML URL). */
 export const PRIVACY_POLICY_URL =
-  "https://github.com/tejas-veer/Auto-App/blob/main/apps/mobile/tile-merge/PRIVACY.md";
+  "https://tejas-veer.github.io/Auto-App/privacy/tile-merge.html";
 
 /** Optional tip link — empty hides the row in Settings. */
 export const SUPPORT_URL = "";

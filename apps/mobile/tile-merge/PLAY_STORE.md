@@ -2,41 +2,57 @@
 
 Package: `app.autoapp.tilemerge` · Expo slug: `tile-merge`
 
-## Store listing (copy-paste)
+## Store listing (copy-paste) — en-GB default
 
 ### App name
 
-**Tile Merge**
+**Merge Tiles: Offline Puzzle**
 
 ### Short description (80 chars max)
 
 ```
-Swipe and merge tiles. Beat your best score. Offline puzzle — no account needed.
+Offline merge puzzle. Slide tiles, reach 2048, undo moves. No account needed.
 ```
+
+(72 characters)
 
 ### Full description
 
 ```
-Tile Merge is a calm, offline sliding-tile puzzle you can play in two minutes or twenty.
+Merge Tiles: Offline Puzzle is a calm sliding-tile game you can play in two minutes or twenty — fully offline, no sign-in.
 
 HOW TO PLAY
-• Swipe up, down, left, or right to move all tiles
+• Swipe up, down, left or right to move every tile on the board
 • When two tiles with the same number touch, they merge into one
-• Reach 2048 — then keep going for a higher score
+• Reach 2048, then keep merging for a higher score
 
 WHY PLAYERS LIKE IT
-• Works fully offline — no account or sign-in
-• Resume your game automatically when you return
-• Undo moves (free allowance each game)
-• Dark theme, smooth animations, haptic feedback on merge
-• Share your score with friends after each run
+• Works offline — no account, no login, no waiting
+• Your game saves automatically — pick up where you left off
+• Free undos every game, plus optional rewarded undos
+• Dark theme, smooth animations and haptic feedback on merges
+• Share your score after each run
 
 PRIVACY FIRST
 • Scores and settings stay on your device
-• No ads at launch — we measure fun before monetization
+• No account required — play offline anytime
 
-Perfect for commutes, breaks, and quick brain warm-ups. Free to play.
+Ideal for commutes, breaks and quick brain warm-ups. Free to play.
 ```
+
+### Upload graphics (Main store listing)
+
+All files in `store/upload/` — run `npm run screenshots:tile-merge` to regenerate.
+
+| Play Console field | File |
+|--------------------|------|
+| App icon | `store/upload/store-icon-512.png` |
+| Feature graphic | `store/upload/feature-graphic-1024x500.png` |
+| Phone screenshot 1 | `store/upload/screenshot-1-phone.png` |
+| Phone screenshot 2 | `store/upload/screenshot-2-phone.png` |
+| Phone screenshot 3 | `store/upload/screenshot-3-phone.png` (optional — gameplay variants) |
+
+Phone screenshots are 1080×1920 (9:16). Minimum 2 required; 4+ recommended for Play promotion.
 
 ### Category
 
@@ -68,12 +84,12 @@ Suggested screenshots: (1) mid-game board + score, (2) win overlay 2048, (3) set
 **URL to use in Play Console:**
 
 ```
-https://github.com/tejas-veer/Auto-App/blob/main/apps/mobile/tile-merge/PRIVACY.md
+https://tejas-veer.github.io/Auto-App/privacy/tile-merge.html
 ```
 
-Host on GitHub Pages later for a cleaner URL — Play accepts GitHub blob links for internal testing.
+Do **not** use GitHub `blob/` links — Google Play's crawler often returns 404 for them. This HTML page is deployed from `docs/privacy/tile-merge.html` via GitHub Pages (`.github/workflows/pages.yml`).
 
-Local source: [PRIVACY.md](./PRIVACY.md)
+Local source: [PRIVACY.md](./PRIVACY.md) · published HTML: [docs/privacy/tile-merge.html](../../../docs/privacy/tile-merge.html)
 
 ---
 
