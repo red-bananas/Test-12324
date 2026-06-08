@@ -3,6 +3,7 @@
     "name": "Tile Merge",
     "slug": "tile-merge",
     "version": "1.0.0",
+    "description": "Offline swipe-and-merge puzzle. Beat your best score — no account, no ads at launch.",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
@@ -18,6 +19,7 @@
     },
     "android": {
       "package": "app.autoapp.tilemerge",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1c1b22"

@@ -1,4 +1,5 @@
 import {
+  Linking,
   Modal,
   Pressable,
   StyleSheet,
@@ -7,6 +8,12 @@ import {
   View,
 } from "react-native";
 import { palette } from "../game/colors";
+import {
+  APP_VERSION,
+  monetizationConfig,
+  PRIVACY_POLICY_URL,
+  SUPPORT_URL,
+} from "../game/monetization";
 import type { GameSettings } from "../game/settings";
 
 interface SettingsSheetProps {
@@ -44,12 +51,35 @@ function SettingRow({
   );
 }
 
+function LinkRow({
+  label,
+  onPress,
+}: {
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="link"
+      onPress={onPress}
+      style={styles.linkRow}
+    >
+      <Text style={styles.linkText}>{label}</Text>
+    </Pressable>
+  );
+}
+
 export function SettingsSheet({
   visible,
   settings,
   onChange,
   onClose,
 }: SettingsSheetProps) {
+  const phaseLabel =
+    monetizationConfig.phase === 1
+      ? "Free launch — no ads"
+      : "Ads enabled";
+
   return (
     <Modal animationType="slide" transparent visible={visible}>
       <View style={styles.backdrop}>
@@ -65,7 +95,7 @@ export function SettingsSheet({
             value={settings.hapticsEnabled}
           />
           <SettingRow
-            description="Merge sounds (coming soon)"
+            description="Merge sounds ship in a future update"
             label="Sound effects"
             onValueChange={(soundEnabled) =>
               onChange({ ...settings, soundEnabled })
@@ -88,6 +118,29 @@ export function SettingsSheet({
             }
             value={settings.confirmNewGame}
           />
+
+          <View style={styles.aboutSection}>
+            <Text style={styles.sectionTitle}>About</Text>
+            <Text style={styles.aboutLine}>Tile Merge v{APP_VERSION}</Text>
+            <Text style={styles.aboutLine}>{phaseLabel}</Text>
+            <Text style={styles.aboutLine}>
+              Offline puzzle. Scores saved on device only.
+            </Text>
+            <LinkRow
+              label="Privacy policy"
+              onPress={() => {
+                void Linking.openURL(PRIVACY_POLICY_URL);
+              }}
+            />
+            {SUPPORT_URL ? (
+              <LinkRow
+                label="Support the developer"
+                onPress={() => {
+                  void Linking.openURL(SUPPORT_URL);
+                }}
+              />
+            ) : null}
+          </View>
 
           <Pressable
             accessibilityLabel="Done"
@@ -142,6 +195,31 @@ const styles = StyleSheet.create({
   rowDescription: {
     color: palette.textMuted,
     fontSize: 13,
+  },
+  aboutSection: {
+    borderTopColor: palette.board,
+    borderTopWidth: 1,
+    gap: 6,
+    marginTop: 8,
+    paddingTop: 12,
+  },
+  sectionTitle: {
+    color: palette.textPrimary,
+    fontSize: 16,
+    fontWeight: "800",
+  },
+  aboutLine: {
+    color: palette.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  linkRow: {
+    paddingVertical: 6,
+  },
+  linkText: {
+    color: palette.accentSoft,
+    fontSize: 14,
+    fontWeight: "600",
   },
   doneButton: {
     alignItems: "center",

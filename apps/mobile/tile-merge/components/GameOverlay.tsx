@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, Share, StyleSheet, Text, View } from "react-native";
 import { palette } from "../game/colors";
 import type { GameStatus } from "../game/state";
 
@@ -7,6 +7,8 @@ interface GameOverlayProps {
   score: number;
   best: number;
   lastRunScore: number;
+  highestTile: number;
+  moveCount: number;
   onContinue?: () => void;
   onRestart: () => void;
 }
@@ -22,11 +24,26 @@ function formatDelta(score: number, lastRunScore: number): string {
   return "Matched your last game";
 }
 
+function buildShareMessage(
+  score: number,
+  best: number,
+  highestTile: number,
+  status: GameStatus,
+): string {
+  const headline =
+    status === "won"
+      ? `I reached 2048 in Tile Merge with ${score.toLocaleString()} points!`
+      : `I scored ${score.toLocaleString()} in Tile Merge!`;
+  return `${headline}\nHighest tile: ${highestTile}\nBest: ${best.toLocaleString()}\nCan you beat it?`;
+}
+
 export function GameOverlay({
   status,
   score,
   best,
   lastRunScore,
+  highestTile,
+  moveCount,
   onContinue,
   onRestart,
 }: GameOverlayProps) {
@@ -42,6 +59,13 @@ export function GameOverlay({
 
   const isNewBest = score > 0 && score >= best;
 
+  const handleShare = () => {
+    void Share.share({
+      message: buildShareMessage(score, best, highestTile, status),
+      title: "Tile Merge score",
+    });
+  };
+
   return (
     <View accessibilityViewIsModal style={styles.overlay}>
       <View style={styles.card}>
@@ -52,6 +76,9 @@ export function GameOverlay({
           <Text style={styles.scoreLabel}>Final score</Text>
           <Text style={styles.scoreValue}>{score.toLocaleString()}</Text>
           <Text style={styles.delta}>{formatDelta(score, lastRunScore)}</Text>
+          <Text style={styles.statsLine}>
+            Highest tile {highestTile} · {moveCount} moves
+          </Text>
           <Text style={styles.bestLine}>
             Best {best.toLocaleString()}
             {isNewBest ? " · New record!" : ""}
@@ -68,6 +95,13 @@ export function GameOverlay({
               <Text style={styles.secondaryText}>Keep playing</Text>
             </Pressable>
           ) : null}
+          <Pressable
+            accessibilityRole="button"
+            onPress={handleShare}
+            style={[styles.button, styles.secondary]}
+          >
+            <Text style={styles.secondaryText}>Share score</Text>
+          </Pressable>
           <Pressable
             accessibilityRole="button"
             onPress={onRestart}
@@ -134,6 +168,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
+  statsLine: {
+    color: palette.textMuted,
+    fontSize: 13,
+    marginTop: 2,
+  },
   bestLine: {
     color: palette.textMuted,
     fontSize: 13,
@@ -148,7 +187,7 @@ const styles = StyleSheet.create({
   },
   button: {
     borderRadius: 10,
-    minWidth: 130,
+    minWidth: 120,
     paddingHorizontal: 16,
     paddingVertical: 12,
   },

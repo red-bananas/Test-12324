@@ -4,3 +4,7 @@ origin: manual
 displayName: Tile Merge
 androidPackage: app.autoapp.tilemerge
 iosBundleId: app.autoapp.tilemerge
+status: in-progress
+monetization: rewarded-ads-phase2
+store: google-play
+version: 1.0.0

@@ -17,6 +17,10 @@ import {
   saveBestScore,
 } from "../game/storage";
 import {
+  loadSavedSession,
+  saveSavedSession,
+} from "../game/savedSession";
+import {
   loadLastRunScore,
   loadSettings,
   saveLastRunScore,
@@ -40,9 +44,16 @@ export default function Home() {
     move,
     newGame,
     undo,
+    rewardedUndo,
     continuePlaying,
     hydrateBest,
+    restoreSession,
     canUndo,
+    canRewardedUndo,
+    rewardedUndoPending,
+    freeUndosLeft,
+    moveCount,
+    highestTile,
     moveFeedback,
     clearMoveFeedback,
     settings,
@@ -66,20 +77,28 @@ export default function Home() {
     let active = true;
 
     async function hydrate() {
-      const [best, previousRun, storedSettings] = await Promise.all([
+      const [best, previousRun, storedSettings, savedSession] = await Promise.all([
         loadBestScore(),
         loadLastRunScore(),
         loadSettings(),
+        loadSavedSession(),
       ]);
       if (!active) {
         return;
       }
-      if (best > 0) {
-        hydrateBest(best);
-      }
       setComparisonScore(previousRun);
       updateSettings(storedSettings);
       setShowOnboarding(!storedSettings.onboardingSeen);
+
+      if (savedSession) {
+        restoreSession(savedSession);
+        if (best > savedSession.game.best) {
+          hydrateBest(best);
+        }
+      } else if (best > 0) {
+        hydrateBest(best);
+      }
+
       hydrated.current = true;
       setAppReady(true);
     }
@@ -88,7 +107,14 @@ export default function Home() {
     return () => {
       active = false;
     };
-  }, [hydrateBest, updateSettings]);
+  }, [hydrateBest, restoreSession, updateSettings]);
+
+  useEffect(() => {
+    if (!hydrated.current) {
+      return;
+    }
+    void saveSavedSession(session);
+  }, [session]);
 
   useEffect(() => {
     if (!hydrated.current) {
@@ -199,12 +225,18 @@ export default function Home() {
       <View style={styles.container}>
         <ScoreHeader
           best={game.best}
+          canRewardedUndo={canRewardedUndo}
           canUndo={canUndo}
+          freeUndosLeft={freeUndosLeft}
           isNewBest={isNewBest}
           onNewGame={handleNewGameRequest}
           onOpenSettings={() => setSettingsOpen(true)}
+          onRewardedUndo={() => {
+            void rewardedUndo();
+          }}
           onUndo={undo}
           reduceMotion={settings.reduceMotion}
+          rewardedUndoPending={rewardedUndoPending}
           score={game.score}
         />
 
@@ -234,7 +266,9 @@ export default function Home() {
             />
             <GameOverlay
               best={game.best}
+              highestTile={highestTile}
               lastRunScore={comparisonScore}
+              moveCount={moveCount}
               onContinue={continuePlaying}
               onRestart={() => {
                 setComparisonScore(game.score);

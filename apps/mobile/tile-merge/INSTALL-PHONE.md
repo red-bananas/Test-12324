@@ -69,6 +69,7 @@ npx eas-cli build --platform android --profile preview
 - [ ] Undo works
 - [ ] New game resets board
 - [ ] Best score survives force-close and reopen
+- [ ] Mid-game board resumes after force-close and reopen
 - [ ] Haptic feedback on merge (Android)
 - [ ] Win at 2048 → overlay → continue or new game
 
@@ -89,6 +90,8 @@ npx eas-cli build --platform android --profile preview
 Re-download and install the new APK (or uninstall old version first if signing conflicts).
 
 ## Play Store internal testing (next)
+
+See [PLAY_STORE.md](./PLAY_STORE.md) for full listing copy, privacy policy, and graphics checklist.
 
 After APK testing passes:
 

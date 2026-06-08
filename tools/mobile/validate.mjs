@@ -15,6 +15,8 @@ function validateApp(slug, config) {
     'assets/adaptive-icon.png',
     'tests/game.test.ts',
     'tests/smoke.test.tsx',
+    'PRIVACY.md',
+    'PLAY_STORE.md',
   ];
 
   for (const file of requiredFiles) {

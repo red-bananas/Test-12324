@@ -30,7 +30,12 @@ Requires an [Expo](https://expo.dev) account and `eas login`.
 - Score + best score (saved locally)
 - Undo last move
 - Win at 2048 with continue option
+- Resume where you left off (auto-save)
 - Dark theme, haptic feedback
+
+## Play Store
+
+Listing copy, privacy policy, and release checklist: [PLAY_STORE.md](./PLAY_STORE.md).
 
 ## Spec
 

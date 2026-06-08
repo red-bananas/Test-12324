@@ -63,3 +63,22 @@ node tools/extensions/zip.mjs {slug}
 ```
 
 CI runs on changes to `apps/extensions/**`. Release via tag `{slug}@v{version}` (see `.github/workflows/extensions-release.yml`).
+
+## Mobile release (Play Store)
+
+```bash
+npm run validate:mobile -- tile-merge
+npm run test:mobile -- tile-merge
+```
+
+One-time: Play Console app + `EXPO_TOKEN` + `GOOGLE_PLAY_SERVICE_ACCOUNT_KEY` GitHub secrets — see [apps/mobile/tile-merge/PLAY_STORE.md](apps/mobile/tile-merge/PLAY_STORE.md).
+
+**Automated publish** (EAS build AAB → internal track):
+
+```bash
+git tag tile-merge@v1.0.0 && git push origin tile-merge@v1.0.0
+# or
+npm run release:tile-merge -- -Version 1.0.0 -Watch
+```
+
+Workflow: `.github/workflows/mobile-release.yml`

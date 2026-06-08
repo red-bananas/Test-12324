@@ -67,7 +67,8 @@ Revenue is **not** automatic from the repo — it follows distribution and polis
 - [x] Product-builder skill in daily use
 - [x] Tile Merge (`apps/mobile/tile-merge/`) — Jest + web E2E + Maestro flow
 - [x] Mobile CI: `mobile-ci.yml`, `tools/mobile/`, `mobile-testing` skill
-- [ ] Play Store internal listing for Tile Merge
+- [ ] Play Store internal listing for Tile Merge — [PLAY_STORE.md](apps/mobile/tile-merge/PLAY_STORE.md)
+- [x] Mobile release workflow (`mobile-release.yml`) + EAS submit to internal track
 - [ ] Sudoku mobile
 - [ ] Per-lane `app.yaml` + CI for web/mobile
 

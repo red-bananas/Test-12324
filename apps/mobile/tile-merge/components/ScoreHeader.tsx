@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { palette } from "../game/colors";
+import { monetizationConfig } from "../game/monetization";
 import { AnimatedScore } from "./AnimatedScore";
 
 interface ScoreHeaderProps {
@@ -7,8 +8,12 @@ interface ScoreHeaderProps {
   best: number;
   onNewGame: () => void;
   onUndo: () => void;
+  onRewardedUndo: () => void;
   onOpenSettings: () => void;
   canUndo: boolean;
+  canRewardedUndo: boolean;
+  rewardedUndoPending: boolean;
+  freeUndosLeft: number;
   reduceMotion: boolean;
   isNewBest: boolean;
 }
@@ -18,17 +23,29 @@ export function ScoreHeader({
   best,
   onNewGame,
   onUndo,
+  onRewardedUndo,
   onOpenSettings,
   canUndo,
+  canRewardedUndo,
+  rewardedUndoPending,
+  freeUndosLeft,
   reduceMotion,
   isNewBest,
 }: ScoreHeaderProps) {
+  const undoLabel =
+    monetizationConfig.phase === 1
+      ? "Bonus undo"
+      : "Watch ad → Undo";
+
   return (
     <View style={styles.container}>
       <View style={styles.topRow}>
         <View>
           <Text accessibilityRole="header" style={styles.title}>
             Tile Merge
+          </Text>
+          <Text style={styles.subtitle}>
+            {freeUndosLeft} free undo{freeUndosLeft === 1 ? "" : "s"} left
           </Text>
         </View>
         <Pressable
@@ -52,16 +69,31 @@ export function ScoreHeader({
       </View>
 
       <View style={styles.actions}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Undo last move"
-          accessibilityState={{ disabled: !canUndo }}
-          disabled={!canUndo}
-          onPress={onUndo}
-          style={[styles.button, !canUndo && styles.buttonDisabled]}
-        >
-          <Text style={styles.buttonText}>Undo</Text>
-        </Pressable>
+        {canRewardedUndo ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={undoLabel}
+            accessibilityState={{ disabled: rewardedUndoPending }}
+            disabled={rewardedUndoPending}
+            onPress={onRewardedUndo}
+            style={[styles.button, styles.buttonRewarded]}
+          >
+            <Text style={styles.buttonRewardedText}>
+              {rewardedUndoPending ? "Loading…" : undoLabel}
+            </Text>
+          </Pressable>
+        ) : (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Undo last move"
+            accessibilityState={{ disabled: !canUndo }}
+            disabled={!canUndo}
+            onPress={onUndo}
+            style={[styles.button, !canUndo && styles.buttonDisabled]}
+          >
+            <Text style={styles.buttonText}>Undo</Text>
+          </Pressable>
+        )}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Start new game"
@@ -91,6 +123,12 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: -0.5,
   },
+  subtitle: {
+    color: palette.textMuted,
+    fontSize: 12,
+    fontWeight: "600",
+    marginTop: 2,
+  },
   settingsButton: {
     backgroundColor: palette.board,
     borderRadius: 10,
@@ -114,11 +152,14 @@ const styles = StyleSheet.create({
     backgroundColor: palette.board,
     borderRadius: 10,
     flex: 1,
-    paddingHorizontal: 18,
+    paddingHorizontal: 12,
     paddingVertical: 12,
   },
   buttonPrimary: {
     backgroundColor: palette.accent,
+  },
+  buttonRewarded: {
+    backgroundColor: palette.accentSoft,
   },
   buttonDisabled: {
     opacity: 0.45,
@@ -131,5 +172,11 @@ const styles = StyleSheet.create({
   },
   buttonPrimaryText: {
     color: "#1c1b22",
+  },
+  buttonRewardedText: {
+    color: "#1c1b22",
+    fontSize: 14,
+    fontWeight: "800",
+    textAlign: "center",
   },
 });

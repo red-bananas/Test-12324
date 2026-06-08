@@ -22,6 +22,7 @@
     "gh:status": "powershell -ExecutionPolicy Bypass -File tools/extensions/github-status.ps1",
     "release:utc": "powershell -ExecutionPolicy Bypass -File tools/extensions/github-release.ps1 -Extension utc-clock-pro -Version 2.0.3 -Watch",
     "release:formatkit": "powershell -ExecutionPolicy Bypass -File tools/extensions/github-release.ps1 -Extension formatkit -Version 1.0.0 -Watch",
+    "release:tile-merge": "powershell -ExecutionPolicy Bypass -File tools/mobile/github-release.ps1 -App tile-merge",
     "validate:mobile": "node tools/mobile/validate.mjs",
     "test:mobile": "node tools/mobile/test.mjs",
     "test:e2e:mobile": "playwright test --config tools/mobile/playwright.config.mjs"

@@ -77,7 +77,13 @@ As a **casual player**, I want **to swipe tiles and merge numbers** so that **I 
 ## Ship checklist
 
 - [x] Spec approved
-- [ ] Code in `apps/mobile/tile-merge/`
-- [ ] Validation / tests green
-- [ ] Play Store listing draft
-- [ ] EAS internal APK build
+- [x] Code in `apps/mobile/tile-merge/`
+- [x] Validation / tests green
+- [x] Resume game on relaunch (local save)
+- [x] Play Store listing draft (`PLAY_STORE.md`)
+- [x] Privacy policy (`PRIVACY.md` + URL for Play Console)
+- [x] Mobile release CI (`mobile-release.yml` — tag `tile-merge@v*` → EAS build + internal submit)
+- [ ] GitHub secrets: `EXPO_TOKEN`, `GOOGLE_PLAY_SERVICE_ACCOUNT_KEY`
+- [ ] Play Console app + internal testers configured
+- [ ] EAS production AAB build (first run)
+- [ ] Play Store internal testing track live
