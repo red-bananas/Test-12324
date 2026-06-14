@@ -220,7 +220,7 @@ Requirements: screenshots **1280×800** or **640×400**; promo **440×280**; ico
 
 ## Automated publish (this repo)
 
-After merging to `main`, create a release tag:
+After merging to `master`, create a release tag:
 
 ```bash
 git tag utc-clock-pro@v2.0.2

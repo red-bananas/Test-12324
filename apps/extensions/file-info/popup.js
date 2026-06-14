@@ -35,16 +35,31 @@ class PopupManager {
   bindEvents() {
     this.$('refreshBtn')?.addEventListener('click', () => this.handleRefresh());
     this.$('retryBtn')?.addEventListener('click', () => this.loadFileInfo());
+    this.$('enableFileAccessBtn')?.addEventListener('click', () => this.handleEnableFileAccess());
     this.$('copyBtn')?.addEventListener('click', () => this.copyAll());
     this.$('copyDimsBtn')?.addEventListener('click', () => this.copyDimensions());
     this.$('downloadBtn')?.addEventListener('click', () => this.downloadFile());
     this.$('exportBtn')?.addEventListener('click', () => this.exportInfo());
-    this.$('fileUrl')?.addEventListener('click', () => this.copyField('url'));
+    this.$('copyUrlBtn')?.addEventListener('click', () => this.copySnippet('url'));
+    this.$('copyImgBtn')?.addEventListener('click', () => this.copySnippet('img'));
+    this.$('copyMdBtn')?.addEventListener('click', () => this.copySnippet('md'));
+    this.$('copyCssBtn')?.addEventListener('click', () => this.copySnippet('css'));
 
     document.querySelectorAll('.info-row.copyable').forEach((row) => {
-      row.addEventListener('click', () => {
+      const copy = () => {
         const key = row.dataset.copy;
         if (key) this.copyField(key);
+      };
+      row.setAttribute('role', 'button');
+      row.setAttribute('tabindex', '0');
+      const label = row.querySelector('.label')?.textContent?.trim();
+      if (label) row.setAttribute('aria-label', `Copy ${label}`);
+      row.addEventListener('click', copy);
+      row.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          copy();
+        }
       });
     });
 
@@ -87,46 +102,107 @@ class PopupManager {
       if (tab.url.startsWith('data:image/') && tab.url.includes('base64,')) {
         this.currentFileInfo = await this.analyzeBase64Image(tab.url);
         this.displayFileInfo(this.currentFileInfo);
+        this.maybeLoadExif(this.currentFileInfo);
         return;
       }
 
-      let response;
-      try {
-        response = await chrome.tabs.sendMessage(tab.id, { action: 'getFileInfo' });
-      } catch {
-        response = null;
+      if (FileInfoShared.isLocalFileUrl(tab.url)) {
+        const ready = await this.ensureLocalFileAccess();
+        if (!ready) return;
       }
 
-      if (!response?.fileInfo) {
-        await this.retryAfterInject(tab);
+      const fileInfo = await this.detectViaInjection(tab);
+      if (!fileInfo) {
+        if (FileInfoShared.isLocalFileUrl(tab.url)) {
+          this.showFileAccessNeeded(
+            'Could not read this local file. Enable "Allow access to file URLs" for File Info, then try again.'
+          );
+          return;
+        }
+        this.showError(
+          'Unable to analyze',
+          'Open an image, PDF, video, or file URL — not a browser settings page.'
+        );
         return;
       }
 
-      this.currentFileInfo = response.fileInfo;
-      this.displayFileInfo(response.fileInfo);
+      this.currentFileInfo = fileInfo;
+      this.displayFileInfo(fileInfo);
+      this.maybeLoadExif(fileInfo);
     } catch (error) {
       this.logError('loadFileInfo', error);
       this.showError('Unable to analyze', 'Reload the page and try again.');
     }
   }
 
-  async retryAfterInject(tab) {
+  async hasLocalFileAccess() {
+    try {
+      return await chrome.permissions.contains({ origins: [FileInfoShared.FILE_URL_ORIGIN] });
+    } catch {
+      return false;
+    }
+  }
+
+  async requestLocalFileAccess() {
+    try {
+      return await chrome.permissions.request({ origins: [FileInfoShared.FILE_URL_ORIGIN] });
+    } catch {
+      return false;
+    }
+  }
+
+  async ensureLocalFileAccess() {
+    if (await this.hasLocalFileAccess()) return true;
+
+    const granted = await this.requestLocalFileAccess();
+    if (granted) return true;
+
+    this.showFileAccessNeeded(
+      'File Info needs permission to read local files opened in Chrome. Click below, or open Extensions and turn on "Allow access to file URLs".'
+    );
+    return false;
+  }
+
+  async handleEnableFileAccess() {
+    const granted = await this.requestLocalFileAccess();
+    if (granted) {
+      this.setFileAccessPromptVisible(false);
+      this.loadFileInfo();
+      return;
+    }
+    this.showFileAccessNeeded(
+      'Permission was not granted. Open chrome://extensions, find File Info, and enable "Allow access to file URLs".'
+    );
+  }
+
+  showFileAccessNeeded(hint) {
+    this.showError('Local file access needed', hint, { fileAccess: true });
+  }
+
+  setFileAccessPromptVisible(visible) {
+    this.$('enableFileAccessBtn')?.classList.toggle('hidden', !visible);
+  }
+
+  async detectViaInjection(tab) {
     try {
       await chrome.scripting.executeScript({
         target: { tabId: tab.id },
         files: ['shared.js', 'content.js']
       });
-      await new Promise((r) => setTimeout(r, 400));
-      const response = await chrome.tabs.sendMessage(tab.id, { action: 'getFileInfo' });
-      if (response?.fileInfo) {
-        this.currentFileInfo = response.fileInfo;
-        this.displayFileInfo(response.fileInfo);
-        return;
-      }
     } catch {
-      /* fall through */
+      return null;
     }
-    this.showError('Unable to analyze', 'Open an image, PDF, video, or file URL — not a browser settings page.');
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        const response = await chrome.tabs.sendMessage(tab.id, { action: 'getFileInfo' });
+        if (response?.fileInfo) return response.fileInfo;
+      } catch {
+        /* content script not ready yet — retry */
+      }
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    return null;
   }
 
   async analyzeBase64Image(url) {
@@ -184,6 +260,91 @@ class PopupManager {
     this.renderHero(fileInfo);
     this.renderDetails(fileInfo);
     this.updateActions(fileInfo);
+    this.renderCodeSnippets(fileInfo);
+    this.hideExif();
+  }
+
+  renderCodeSnippets(fileInfo) {
+    const group = this.$('codeSnippets');
+    if (!group) return;
+    const hasUrl = !!fileInfo.url;
+    const showUrl = hasUrl && !fileInfo.url.startsWith('data:');
+    const isImage = fileInfo.type === 'image' && hasUrl;
+    group.classList.toggle('hidden', !(isImage || showUrl));
+    this.$('copyUrlBtn')?.classList.toggle('hidden', !showUrl);
+    ['copyImgBtn', 'copyMdBtn', 'copyCssBtn'].forEach((id) => {
+      this.$(id)?.classList.toggle('hidden', !isImage);
+    });
+  }
+
+  async copySnippet(kind) {
+    const info = this.currentFileInfo;
+    if (!info) return;
+    const builders = {
+      url: () => info.url,
+      img: () => FileInfoShared.buildImgTag(info),
+      md: () => FileInfoShared.buildMarkdownImage(info),
+      css: () => FileInfoShared.buildCssBackground(info)
+    };
+    const text = builders[kind]?.();
+    if (!text) return;
+    await this.writeClipboard(text);
+    this.toast(kind === 'url' ? 'Copied URL' : 'Copied snippet');
+  }
+
+  async maybeLoadExif(info) {
+    this.hideExif();
+    if (!info?.url || info.type !== 'image') return;
+
+    const isJpeg = /jpe?g/i.test(info.mimeType || '')
+      || /jpe?g|jfif/i.test(info.fileExtension || '')
+      || /\.jpe?g(\?|$)/i.test(info.url);
+    if (!isJpeg) return;
+
+    try {
+      const buffer = await this.fetchBytes(info.url);
+      if (!buffer) return;
+      const exif = FileInfoExif.parse(buffer);
+      if (exif) this.renderExif(exif);
+    } catch {
+      /* best effort — CORS or network blocked */
+    }
+  }
+
+  async fetchBytes(url) {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const len = Number(res.headers.get('content-length'));
+    if (len && len > 25 * 1024 * 1024) return null;
+    return res.arrayBuffer();
+  }
+
+  renderExif(exif) {
+    const section = this.$('exifSection');
+    if (!section) return;
+
+    const camera = [exif.make, exif.model].filter(Boolean).join(' ');
+    this.setRow('exifCameraRow', 'exifCamera', camera || null);
+    this.setRow('exifDateRow', 'exifDate', exif.dateTime || null);
+
+    const gpsRow = this.$('exifGpsRow');
+    const gpsWarn = this.$('exifGpsWarn');
+    if (exif.gps && Number.isFinite(exif.gps.lat) && Number.isFinite(exif.gps.lng)) {
+      const coords = `${exif.gps.lat.toFixed(6)}, ${exif.gps.lng.toFixed(6)}`;
+      this.setRow('exifGpsRow', 'exifGps', coords);
+      gpsWarn?.classList.remove('hidden');
+    } else {
+      gpsRow?.classList.add('hidden');
+      gpsWarn?.classList.add('hidden');
+    }
+
+    const hasAny = camera || exif.dateTime || exif.gps;
+    section.classList.toggle('hidden', !hasAny);
+  }
+
+  hideExif() {
+    this.$('exifSection')?.classList.add('hidden');
+    this.$('exifGpsWarn')?.classList.add('hidden');
   }
 
   renderHero(fileInfo) {
@@ -447,6 +608,8 @@ class PopupManager {
     document.querySelector('.copy-toast')?.remove();
     const el = document.createElement('div');
     el.className = 'copy-toast';
+    el.setAttribute('role', 'status');
+    el.setAttribute('aria-live', 'polite');
     el.textContent = message;
     if (isError) el.style.background = 'var(--error)';
     document.body.appendChild(el);
@@ -464,6 +627,8 @@ class PopupManager {
       error: ['error'],
       empty: ['empty']
     };
+
+    if (state !== 'error') this.setFileAccessPromptVisible(false);
 
     ['loading', 'content', 'error', 'empty'].forEach((id) => {
       const el = this.$(id);
@@ -484,15 +649,18 @@ class PopupManager {
     if (this.$('emptyHint')) this.$('emptyHint').textContent = hint;
   }
 
-  showError(title, hint) {
+  showError(title, hint, options = {}) {
     this.showState('error');
     if (this.$('errorTitle')) this.$('errorTitle').textContent = title;
     if (this.$('errorHint')) this.$('errorHint').textContent = hint;
+    this.setFileAccessPromptVisible(Boolean(options.fileAccess));
   }
 
   logError(msg, err) {
     console.error(`PopupManager: ${msg}`, err);
   }
 }
+
+if (typeof window !== 'undefined') window.PopupManager = PopupManager;
 
 document.addEventListener('DOMContentLoaded', () => new PopupManager());

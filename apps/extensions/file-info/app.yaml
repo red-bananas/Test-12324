@@ -1,0 +1,9 @@
+slug: file-info
+lane: extensions
+origin: manual
+displayName: File Info
+status: shipped              # scaffold | in-progress | shipped
+category: productivity
+manifestVersion: 3
+monetization: tip-ware
+chromeWebStoreId: mjddfbocnhlabkjnggpcpaecchngebgk

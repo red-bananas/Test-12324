@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "auto-app-extensions",
   "private": true,
   "type": "module",
@@ -16,12 +16,15 @@
     "zip:file-info": "node tools/extensions/zip.mjs file-info",
     "zip:formatkit": "node tools/extensions/zip.mjs formatkit",
     "screenshots:formatkit": "node tools/extensions/capture-formatkit-screenshots.mjs && python tools/extensions/prepare-store-images.py formatkit",
+    "screenshots:file-info": "node tools/extensions/capture-file-info-screenshots.mjs && python tools/extensions/prepare-store-images.py file-info",
     "logo:formatkit": "python tools/extensions/apply-formatkit-logo.py",
+    "logo:file-info": "python tools/extensions/apply-file-info-logo.py",
     "gh:install": "powershell -ExecutionPolicy Bypass -File tools/extensions/install-gh.ps1",
     "gh:auth": "powershell -ExecutionPolicy Bypass -File tools/extensions/gh-auth.ps1",
     "gh:status": "powershell -ExecutionPolicy Bypass -File tools/extensions/github-status.ps1",
     "release:utc": "powershell -ExecutionPolicy Bypass -File tools/extensions/github-release.ps1 -Extension utc-clock-pro -Version 2.0.3 -Watch",
     "release:formatkit": "powershell -ExecutionPolicy Bypass -File tools/extensions/github-release.ps1 -Extension formatkit -Version 1.0.0 -Watch",
+    "release:file-info": "powershell -ExecutionPolicy Bypass -File tools/extensions/github-release.ps1 -Extension file-info -Version 1.2.0 -Watch",
     "release:tile-merge": "powershell -ExecutionPolicy Bypass -File tools/mobile/github-release.ps1 -App tile-merge",
     "validate:mobile": "node tools/mobile/validate.mjs",
     "test:mobile": "node tools/mobile/test.mjs",
