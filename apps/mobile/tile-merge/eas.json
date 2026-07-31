@@ -12,6 +12,9 @@
     },
     "production": {
       "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_USE_PRODUCTION_ADS": "true"
+      },
       "android": {
         "buildType": "app-bundle"
       }
@@ -20,7 +23,7 @@
   "submit": {
     "production": {
       "android": {
-        "track": "internal",
+        "track": "production",
         "releaseStatus": "completed"
       }
     }

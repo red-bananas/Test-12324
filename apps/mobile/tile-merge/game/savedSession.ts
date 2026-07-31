@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { GameSession } from "./sessionTypes";
 import { monetizationConfig } from "./monetization";
+import { ensureUniqueTileIds, type DisplayTile } from "./tiles";
 
 export const SAVED_SESSION_KEY = "tile-merge-saved-session";
 const SCHEMA_VERSION = 1;
@@ -17,12 +18,16 @@ function normalizeSession(raw: Partial<GameSession>): GameSession | null {
 
   return {
     game: raw.game,
-    tiles: raw.tiles,
+    tiles: ensureUniqueTileIds(raw.tiles as DisplayTile[]),
     history: Array.isArray(raw.history) ? raw.history : [],
     freeUndosLeft:
       typeof raw.freeUndosLeft === "number"
         ? Math.max(0, raw.freeUndosLeft)
         : monetizationConfig.freeUndosPerGame,
+    rewardedUndosUsed:
+      typeof raw.rewardedUndosUsed === "number"
+        ? Math.max(0, raw.rewardedUndosUsed)
+        : 0,
     moveCount: typeof raw.moveCount === "number" ? Math.max(0, raw.moveCount) : 0,
   };
 }

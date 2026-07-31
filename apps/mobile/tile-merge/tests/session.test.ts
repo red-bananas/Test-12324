@@ -61,6 +61,7 @@ describe("game session reducer", () => {
       },
       tiles: createTilesFromGrid(grid),
       freeUndosLeft: 3,
+      rewardedUndosUsed: 0,
       moveCount: 0,
     };
 
@@ -88,6 +89,7 @@ describe("game session reducer", () => {
       },
       tiles: createTilesFromGrid(grid),
       freeUndosLeft: 3,
+      rewardedUndosUsed: 0,
       moveCount: 0,
     };
 
@@ -106,6 +108,7 @@ describe("game session reducer", () => {
       tiles: [],
       history: [{ game: previous, tiles: [] }],
       freeUndosLeft: 1,
+      rewardedUndosUsed: 0,
       moveCount: 2,
     };
 
@@ -124,6 +127,7 @@ describe("game session reducer", () => {
       tiles: [],
       history: [{ game: previous, tiles: [] }],
       freeUndosLeft: 0,
+      rewardedUndosUsed: 0,
       moveCount: 1,
     };
 
@@ -139,6 +143,7 @@ describe("game session reducer", () => {
       tiles: [],
       history: [{ game: previous, tiles: [] }],
       freeUndosLeft: 0,
+      rewardedUndosUsed: 0,
       moveCount: 3,
     };
 
@@ -146,7 +151,24 @@ describe("game session reducer", () => {
 
     expect(next.game).toBe(previous);
     expect(next.freeUndosLeft).toBe(0);
+    expect(next.rewardedUndosUsed).toBe(1);
     expect(next.moveCount).toBe(2);
+  });
+
+  it("blocks rewarded undo when cap is reached", () => {
+    const previous = createInitialState();
+    const session = {
+      game: { ...createInitialState(), score: 8 },
+      tiles: [],
+      history: [{ game: previous, tiles: [] }],
+      freeUndosLeft: 0,
+      rewardedUndosUsed: 3,
+      moveCount: 3,
+    };
+
+    const next = sessionReducer(session, { type: "REWARDED_UNDO" });
+
+    expect(next).toBe(session);
   });
 
   it("clears history when starting a new game", () => {
@@ -154,6 +176,7 @@ describe("game session reducer", () => {
       ...createSession(),
       history: [{ game: createInitialState(), tiles: [] }],
       freeUndosLeft: 2,
+      rewardedUndosUsed: 1,
       moveCount: 1,
     };
 
@@ -163,6 +186,7 @@ describe("game session reducer", () => {
     expect(next.game.score).toBe(0);
     expect(next.game.best).toBe(session.game.best);
     expect(next.freeUndosLeft).toBe(3);
+    expect(next.rewardedUndosUsed).toBe(0);
     expect(next.moveCount).toBe(0);
   });
 

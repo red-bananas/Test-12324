@@ -1,5 +1,6 @@
 import { Pressable, Share, StyleSheet, Text, View } from "react-native";
 import { palette } from "../game/colors";
+import { DISPLAY_NAME, PLAY_STORE_URL } from "../game/monetization";
 import type { GameStatus } from "../game/state";
 
 interface GameOverlayProps {
@@ -32,9 +33,9 @@ function buildShareMessage(
 ): string {
   const headline =
     status === "won"
-      ? `I reached 2048 in Tile Merge with ${score.toLocaleString()} points!`
-      : `I scored ${score.toLocaleString()} in Tile Merge!`;
-  return `${headline}\nHighest tile: ${highestTile}\nBest: ${best.toLocaleString()}\nCan you beat it?`;
+      ? `I reached 2048 in ${DISPLAY_NAME} with ${score.toLocaleString()} points!`
+      : `I scored ${score.toLocaleString()} in ${DISPLAY_NAME}!`;
+  return `${headline}\nHighest tile: ${highestTile}\nBest: ${best.toLocaleString()}\n${PLAY_STORE_URL}`;
 }
 
 export function GameOverlay({
@@ -57,12 +58,12 @@ export function GameOverlay({
       ? "Excellent run. Keep going for a higher score or start fresh."
       : "No moves left — try again and chase a new best.";
 
-  const isNewBest = score > 0 && score >= best;
+  const isNewBest = score > 0 && score > lastRunScore && score >= best;
 
   const handleShare = () => {
     void Share.share({
       message: buildShareMessage(score, best, highestTile, status),
-      title: "Tile Merge score",
+      title: `${DISPLAY_NAME} score`,
     });
   };
 
@@ -73,6 +74,9 @@ export function GameOverlay({
         <Text style={styles.message}>{message}</Text>
 
         <View style={styles.scoreCard}>
+          {isNewBest ? (
+            <Text style={styles.newBestBanner}>New personal best!</Text>
+          ) : null}
           <Text style={styles.scoreLabel}>Final score</Text>
           <Text style={styles.scoreValue}>{score.toLocaleString()}</Text>
           <Text style={styles.delta}>{formatDelta(score, lastRunScore)}</Text>
@@ -81,7 +85,7 @@ export function GameOverlay({
           </Text>
           <Text style={styles.bestLine}>
             Best {best.toLocaleString()}
-            {isNewBest ? " · New record!" : ""}
+            {isNewBest ? " · Record!" : ""}
           </Text>
         </View>
 
@@ -150,6 +154,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     width: "100%",
+  },
+  newBestBanner: {
+    color: palette.accent,
+    fontSize: 14,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+    marginBottom: 4,
+    textTransform: "uppercase",
   },
   scoreLabel: {
     color: palette.textMuted,

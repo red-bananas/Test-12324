@@ -1,3 +1,4 @@
+import { showRewardedAd } from "./ads/rewarded";
 import { monetizationConfig } from "./monetization";
 
 export type RewardKind = "undo";
@@ -13,6 +14,5 @@ export async function requestRewardedAction(
     return true;
   }
 
-  // TODO(phase-2): integrate expo-ads-admob rewarded unit; fallback false offline.
-  return false;
+  return showRewardedAd();
 }

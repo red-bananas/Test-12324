@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { palette } from "../game/colors";
-import { monetizationConfig } from "../game/monetization";
+import { DISPLAY_NAME, monetizationConfig } from "../game/monetization";
 import { AnimatedScore } from "./AnimatedScore";
 
 interface ScoreHeaderProps {
@@ -14,6 +14,7 @@ interface ScoreHeaderProps {
   canRewardedUndo: boolean;
   rewardedUndoPending: boolean;
   freeUndosLeft: number;
+  rewardedUndosRemaining: number;
   reduceMotion: boolean;
   isNewBest: boolean;
 }
@@ -29,24 +30,30 @@ export function ScoreHeader({
   canRewardedUndo,
   rewardedUndoPending,
   freeUndosLeft,
+  rewardedUndosRemaining,
   reduceMotion,
   isNewBest,
 }: ScoreHeaderProps) {
   const undoLabel =
     monetizationConfig.phase === 1
       ? "Bonus undo"
-      : "Watch ad → Undo";
+      : `Watch ad → Undo (${rewardedUndosRemaining} left)`;
+
+  const subtitle =
+    freeUndosLeft > 0
+      ? `${freeUndosLeft} free undo${freeUndosLeft === 1 ? "" : "s"} left`
+      : canRewardedUndo
+        ? `${rewardedUndosRemaining} bonus undo${rewardedUndosRemaining === 1 ? "" : "s"} available`
+        : "Out of undos this game";
 
   return (
     <View style={styles.container}>
       <View style={styles.topRow}>
         <View>
           <Text accessibilityRole="header" style={styles.title}>
-            Tile Merge
+            {DISPLAY_NAME}
           </Text>
-          <Text style={styles.subtitle}>
-            {freeUndosLeft} free undo{freeUndosLeft === 1 ? "" : "s"} left
-          </Text>
+          <Text style={styles.subtitle}>{subtitle}</Text>
         </View>
         <Pressable
           accessibilityLabel="Open settings"

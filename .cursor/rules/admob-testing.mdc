@@ -1,0 +1,41 @@
+---
+description: AdMob testing safety — never click production ads during dev; use Google test IDs
+globs: apps/mobile/**
+alwaysApply: false
+---
+
+# AdMob testing safety
+
+## Golden rules
+
+1. **Never click your own production ads** — invalid traffic can suspend your AdMob account.
+2. **Dev, preview, and QA builds** must use **Google test ad unit IDs**, not your real units.
+3. **Production ad units** only when `EXPO_PUBLIC_USE_PRODUCTION_ADS=true` (EAS `production` profile).
+4. **Expo Go cannot load AdMob** — test ads on an EAS preview APK or dev client build.
+5. **Play Console** — flip Advertising ID + Ads declaration only when shipping a build that serves real ads.
+
+## Tile Merge IDs (production — do not use in dev)
+
+| ID | Value |
+|----|-------|
+| App ID | `ca-app-pub-8557764165565608~1296387874` |
+| Rewarded undo | `ca-app-pub-8557764165565608/6357142860` |
+
+## Safe test IDs (click freely)
+
+| ID | Value |
+|----|-------|
+| Test App ID | `ca-app-pub-3940256099942544~3347511713` |
+| Test rewarded | `ca-app-pub-3940256099942544/5224354917` |
+
+## Implementation pattern
+
+- Unit selection: [`apps/mobile/tile-merge/game/ads/rewarded.ts`](apps/mobile/tile-merge/game/ads/rewarded.ts) — `getRewardedAdUnitId()` returns test IDs unless `EXPO_PUBLIC_USE_PRODUCTION_ADS=true`.
+- EAS: `preview` profile has no production flag; `production` profile sets `EXPO_PUBLIC_USE_PRODUCTION_ADS=true` in [`eas.json`](apps/mobile/tile-merge/eas.json).
+- Wrap SDK behind `game/ads/*` — never call `react-native-google-mobile-ads` directly from UI.
+
+## When implementing ads in any mobile app
+
+- Add `__DEV__` or env-guard before wiring real unit IDs.
+- Mock `game/ads/*` in Jest — do not load native modules in unit tests.
+- Document ad testing steps in the app's `PLAY_STORE.md` or README.

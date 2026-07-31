@@ -113,7 +113,7 @@ jobs:
             --non-interactive \
             --wait
 
-      - name: EAS Submit (Play internal track)
+      - name: EAS Submit (Play production track)
         if: steps.meta.outputs.profile == 'production' && steps.meta.outputs.submit == 'true'
         working-directory: ${{ steps.paths.outputs.dir }}
         env:
@@ -132,7 +132,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add apps/mobile/
           git diff --staged --quiet || git commit -m "chore(release): ${{ steps.meta.outputs.slug }} v${{ steps.meta.outputs.version }}"
-          git push origin HEAD:master || git push origin HEAD:main || true
+          git push origin HEAD:master || true
 
       - name: GitHub Release
         uses: softprops/action-gh-release@v2

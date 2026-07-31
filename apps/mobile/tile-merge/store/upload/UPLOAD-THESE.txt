@@ -1,0 +1,9 @@
+Upload these files to Google Play Console → Main store listing:
+
+Graphics:
+  store-icon-512.png (512x512 app icon)
+  feature-graphic-1024x500.png (1024x500 feature graphic)
+
+Phone screenshots (portrait):
+  screenshot-1-phone.png
+  screenshot-2-phone.png

@@ -9,5 +9,6 @@ export interface SessionSnapshot {
 export interface GameSession extends SessionSnapshot {
   history: SessionSnapshot[];
   freeUndosLeft: number;
+  rewardedUndosUsed: number;
   moveCount: number;
 }

@@ -10,15 +10,20 @@ import {
 import { palette } from "../game/colors";
 import {
   APP_VERSION,
+  DISPLAY_NAME,
   monetizationConfig,
   PRIVACY_POLICY_URL,
   SUPPORT_URL,
 } from "../game/monetization";
+import { soundEffectsAvailable } from "../game/sounds";
+import type { PlayerStats } from "../game/stats";
+import { todayKey } from "../game/stats";
 import type { GameSettings } from "../game/settings";
 
 interface SettingsSheetProps {
   visible: boolean;
   settings: GameSettings;
+  stats: PlayerStats;
   onChange: (settings: GameSettings) => void;
   onClose: () => void;
 }
@@ -72,13 +77,17 @@ function LinkRow({
 export function SettingsSheet({
   visible,
   settings,
+  stats,
   onChange,
   onClose,
 }: SettingsSheetProps) {
   const phaseLabel =
     monetizationConfig.phase === 1
       ? "Free launch — no ads"
-      : "Ads enabled";
+      : "Optional rewarded ads for bonus undos";
+
+  const dailyBestToday =
+    stats.dailyBestDate === todayKey() ? stats.dailyBest : 0;
 
   return (
     <Modal animationType="slide" transparent visible={visible}>
@@ -94,14 +103,16 @@ export function SettingsSheet({
             }
             value={settings.hapticsEnabled}
           />
-          <SettingRow
-            description="Merge sounds ship in a future update"
-            label="Sound effects"
-            onValueChange={(soundEnabled) =>
-              onChange({ ...settings, soundEnabled })
-            }
-            value={settings.soundEnabled}
-          />
+          {soundEffectsAvailable ? (
+            <SettingRow
+              description="Merge sounds"
+              label="Sound effects"
+              onValueChange={(soundEnabled) =>
+                onChange({ ...settings, soundEnabled })
+              }
+              value={settings.soundEnabled}
+            />
+          ) : null}
           <SettingRow
             description="Skip tile motion for accessibility"
             label="Reduce motion"
@@ -120,8 +131,32 @@ export function SettingsSheet({
           />
 
           <View style={styles.aboutSection}>
+            <Text style={styles.sectionTitle}>Your stats</Text>
+            <Text style={styles.aboutLine}>
+              Games played: {stats.gamesPlayed.toLocaleString()}
+            </Text>
+            <Text style={styles.aboutLine}>
+              Total merges: {stats.totalMerges.toLocaleString()}
+            </Text>
+            <Text style={styles.aboutLine}>
+              Highest tile: {stats.highestTileEver || "—"}
+            </Text>
+            <Text style={styles.aboutLine}>
+              Today&apos;s best: {dailyBestToday > 0 ? dailyBestToday.toLocaleString() : "—"}
+            </Text>
+            <Text style={styles.aboutLine}>
+              Streak: {stats.currentStreak} day{stats.currentStreak === 1 ? "" : "s"}
+              {stats.longestStreak > stats.currentStreak
+                ? ` (best ${stats.longestStreak})`
+                : ""}
+            </Text>
+          </View>
+
+          <View style={styles.aboutSection}>
             <Text style={styles.sectionTitle}>About</Text>
-            <Text style={styles.aboutLine}>Tile Merge v{APP_VERSION}</Text>
+            <Text style={styles.aboutLine}>
+              {DISPLAY_NAME} v{APP_VERSION}
+            </Text>
             <Text style={styles.aboutLine}>{phaseLabel}</Text>
             <Text style={styles.aboutLine}>
               Offline puzzle. Scores saved on device only.

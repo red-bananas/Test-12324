@@ -11,7 +11,18 @@ import { OnboardingOverlay } from "../components/OnboardingOverlay";
 import { ScoreHeader } from "../components/ScoreHeader";
 import { ScorePop } from "../components/ScorePop";
 import { SettingsSheet } from "../components/SettingsSheet";
+import { initRewardedAds, preloadRewardedAd } from "../game/ads/rewarded";
 import { palette } from "../game/colors";
+import { monetizationConfig } from "../game/monetization";
+import {
+  defaultStats,
+  loadStats,
+  recordGameCompleted,
+  recordMerge,
+  recordPlayDay,
+  saveStats,
+  type PlayerStats,
+} from "../game/stats";
 import {
   loadBestScore,
   saveBestScore,
@@ -51,6 +62,7 @@ export default function Home() {
     canUndo,
     canRewardedUndo,
     rewardedUndoPending,
+    rewardedUndosRemaining,
     freeUndosLeft,
     moveCount,
     highestTile,
@@ -71,17 +83,25 @@ export default function Home() {
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [appReady, setAppReady] = useState(false);
+  const [playerStats, setPlayerStats] = useState<PlayerStats>(defaultStats);
   const previousStatus = useRef(game.status);
+
+  useEffect(() => {
+    if (monetizationConfig.phase === 2) {
+      void initRewardedAds().then(() => preloadRewardedAd());
+    }
+  }, []);
 
   useEffect(() => {
     let active = true;
 
     async function hydrate() {
-      const [best, previousRun, storedSettings, savedSession] = await Promise.all([
+      const [best, previousRun, storedSettings, savedSession, stats] = await Promise.all([
         loadBestScore(),
         loadLastRunScore(),
         loadSettings(),
         loadSavedSession(),
+        loadStats(),
       ]);
       if (!active) {
         return;
@@ -89,6 +109,11 @@ export default function Home() {
       setComparisonScore(previousRun);
       updateSettings(storedSettings);
       setShowOnboarding(!storedSettings.onboardingSeen);
+      const statsWithDay = recordPlayDay(stats);
+      setPlayerStats(statsWithDay);
+      if (statsWithDay.lastPlayedDate !== stats.lastPlayedDate) {
+        void saveStats(statsWithDay);
+      }
 
       if (savedSession) {
         restoreSession(savedSession);
@@ -130,9 +155,14 @@ export default function Home() {
       (game.status === "lost" || game.status === "won")
     ) {
       void saveLastRunScore(game.score);
+      setPlayerStats((current) => {
+        const next = recordGameCompleted(current, game.score, highestTile);
+        void saveStats(next);
+        return next;
+      });
     }
     previousStatus.current = game.status;
-  }, [game.status, game.score]);
+  }, [game.status, game.score, highestTile]);
 
   useEffect(() => {
     if (!moveFeedback) {
@@ -150,6 +180,14 @@ export default function Home() {
 
     if (moveFeedback.milestone) {
       setActiveMilestone(moveFeedback.milestone);
+    }
+
+    if (moveFeedback.merged) {
+      setPlayerStats((current) => {
+        const next = recordMerge(current);
+        void saveStats(next);
+        return next;
+      });
     }
   }, [moveFeedback]);
 
@@ -237,6 +275,7 @@ export default function Home() {
           onUndo={undo}
           reduceMotion={settings.reduceMotion}
           rewardedUndoPending={rewardedUndoPending}
+          rewardedUndosRemaining={rewardedUndosRemaining}
           score={game.score}
         />
 
@@ -286,6 +325,7 @@ export default function Home() {
         onChange={handleSettingsChange}
         onClose={() => setSettingsOpen(false)}
         settings={settings}
+        stats={playerStats}
         visible={settingsOpen}
       />
 

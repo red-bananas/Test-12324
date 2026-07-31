@@ -15,6 +15,28 @@ export function resetTileIds(start = 1): void {
   nextTileId = start;
 }
 
+export function syncTileIdCounter(tiles: DisplayTile[]): void {
+  const maxId = tiles.reduce((max, tile) => Math.max(max, tile.id), 0);
+  resetTileIds(maxId + 1);
+}
+
+export function hasDuplicateTileIds(tiles: DisplayTile[]): boolean {
+  const seen = new Set<number>();
+  return tiles.some((tile) => seen.has(tile.id) || !seen.add(tile.id));
+}
+
+export function reassignTileIds(tiles: DisplayTile[]): DisplayTile[] {
+  let id = 1;
+  return tiles.map((tile) => ({ ...tile, id: id++ }));
+}
+
+/** Repair corrupt saves and realign the module counter. */
+export function ensureUniqueTileIds(tiles: DisplayTile[]): DisplayTile[] {
+  const next = hasDuplicateTileIds(tiles) ? reassignTileIds(tiles) : tiles;
+  syncTileIdCounter(next);
+  return next;
+}
+
 export function createTilesFromGrid(grid: Grid): DisplayTile[] {
   const tiles: DisplayTile[] = [];
   for (let row = 0; row < GRID_SIZE; row += 1) {
@@ -43,7 +65,7 @@ function slideRowTiles(
     if (i + 1 < sorted.length && sorted[i].value === sorted[i + 1].value) {
       const value = sorted[i].value * 2;
       result.push({
-        id: sorted[i].id,
+        id: nextTileId++,
         value,
         row,
         col,

@@ -5,6 +5,7 @@ import {
   triggerMergeHaptic,
 } from "../game/haptics";
 import { monetizationConfig } from "../game/monetization";
+import { canUseRewardedUndo } from "../game/ads/policy";
 import { requestRewardedAction } from "../game/rewards";
 import type { GameSession } from "../game/sessionTypes";
 import { defaultSettings, loadSettings, type GameSettings } from "../game/settings";
@@ -22,6 +23,8 @@ import {
   highestTileValue,
   moveTiles,
   resetTileIds,
+  syncTileIdCounter,
+  ensureUniqueTileIds,
   type DisplayTile,
 } from "../game/tiles";
 
@@ -52,11 +55,14 @@ const HISTORY_LIMIT = 10;
 export function createSession(best = 0, random?: () => number): GameSession {
   resetTileIds();
   const game = createInitialState(best, random);
+  const tiles = createTilesFromGrid(game.grid);
+  syncTileIdCounter(tiles);
   return {
     game,
-    tiles: createTilesFromGrid(game.grid),
+    tiles,
     history: [],
     freeUndosLeft: monetizationConfig.freeUndosPerGame,
+    rewardedUndosUsed: 0,
     moveCount: 0,
   };
 }
@@ -66,6 +72,7 @@ function buildNextTiles(
   direction: Direction,
   result: MoveResult,
 ): DisplayTile[] {
+  syncTileIdCounter(currentTiles);
   let nextTiles: DisplayTile[] = moveTiles(currentTiles, direction).tiles.map(
     (tile) => ({
       ...tile,
@@ -99,17 +106,21 @@ export function sessionReducer(
           { game: session.game, tiles: session.tiles },
         ],
         freeUndosLeft: session.freeUndosLeft,
+        rewardedUndosUsed: session.rewardedUndosUsed,
         moveCount: session.moveCount + 1,
       };
     }
     case "NEW_GAME": {
       resetTileIds();
       const game = resetGame(session.game.best, action.random);
+      const tiles = createTilesFromGrid(game.grid);
+      syncTileIdCounter(tiles);
       return {
         game,
-        tiles: createTilesFromGrid(game.grid),
+        tiles,
         history: [],
         freeUndosLeft: monetizationConfig.freeUndosPerGame,
+        rewardedUndosUsed: 0,
         moveCount: 0,
       };
     }
@@ -118,24 +129,31 @@ export function sessionReducer(
         return session;
       }
       const previous = session.history[session.history.length - 1];
+      syncTileIdCounter(previous.tiles);
       return {
         game: previous.game,
         tiles: previous.tiles,
         history: session.history.slice(0, -1),
         freeUndosLeft: session.freeUndosLeft - 1,
+        rewardedUndosUsed: session.rewardedUndosUsed,
         moveCount: Math.max(0, session.moveCount - 1),
       };
     }
     case "REWARDED_UNDO": {
-      if (session.history.length === 0) {
+      if (
+        session.history.length === 0 ||
+        !canUseRewardedUndo(session.rewardedUndosUsed)
+      ) {
         return session;
       }
       const previous = session.history[session.history.length - 1];
+      syncTileIdCounter(previous.tiles);
       return {
         game: previous.game,
         tiles: previous.tiles,
         history: session.history.slice(0, -1),
         freeUndosLeft: session.freeUndosLeft,
+        rewardedUndosUsed: session.rewardedUndosUsed + 1,
         moveCount: Math.max(0, session.moveCount - 1),
       };
     }
@@ -152,15 +170,22 @@ export function sessionReducer(
           best: Math.max(session.game.best, action.best),
         },
       };
-    case "RESTORE":
+    case "RESTORE": {
+      const tiles = ensureUniqueTileIds(action.session.tiles);
       return {
         ...action.session,
+        tiles,
         freeUndosLeft:
           typeof action.session.freeUndosLeft === "number"
             ? action.session.freeUndosLeft
             : monetizationConfig.freeUndosPerGame,
+        rewardedUndosUsed:
+          typeof action.session.rewardedUndosUsed === "number"
+            ? Math.max(0, action.session.rewardedUndosUsed)
+            : 0,
         moveCount: action.session.moveCount ?? 0,
       };
+    }
     default:
       return session;
   }
@@ -227,7 +252,11 @@ export function useGameSession(initialBest = 0) {
   }, [session.freeUndosLeft, session.history.length]);
 
   const rewardedUndo = useCallback(async () => {
-    if (session.history.length === 0 || session.freeUndosLeft > 0) {
+    if (
+      session.history.length === 0 ||
+      session.freeUndosLeft > 0 ||
+      !canUseRewardedUndo(session.rewardedUndosUsed)
+    ) {
       return;
     }
 
@@ -242,7 +271,7 @@ export function useGameSession(initialBest = 0) {
     } finally {
       setRewardedUndoPending(false);
     }
-  }, [session.freeUndosLeft, session.history.length]);
+  }, [session.freeUndosLeft, session.history.length, session.rewardedUndosUsed]);
 
   const continuePlaying = useCallback(() => {
     dispatch({ type: "CONTINUE" });
@@ -273,7 +302,13 @@ export function useGameSession(initialBest = 0) {
   const canRewardedUndo =
     session.history.length > 0 &&
     session.freeUndosLeft <= 0 &&
-    session.game.status === "playing";
+    session.game.status === "playing" &&
+    canUseRewardedUndo(session.rewardedUndosUsed);
+
+  const rewardedUndosRemaining = Math.max(
+    0,
+    monetizationConfig.maxRewardedUndosPerGame - session.rewardedUndosUsed,
+  );
 
   return {
     session,
@@ -287,6 +322,7 @@ export function useGameSession(initialBest = 0) {
     canUndo,
     canRewardedUndo,
     rewardedUndoPending,
+    rewardedUndosRemaining,
     freeUndosLeft: session.freeUndosLeft,
     moveCount: session.moveCount,
     highestTile,
