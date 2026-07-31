@@ -2,14 +2,14 @@ name: Mobile CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [master]
     paths:
       - "apps/mobile/**"
       - "tools/mobile/**"
       - ".github/workflows/mobile-ci.yml"
       - "package.json"
   pull_request:
-    branches: [main, master]
+    branches: [master]
     paths:
       - "apps/mobile/**"
       - "tools/mobile/**"
@@ -54,7 +54,13 @@ jobs:
 
       - name: Install app dependencies
         working-directory: apps/mobile/tile-merge
-        run: npm ci --legacy-peer-deps || npm install --legacy-peer-deps
+        env:
+          NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
+        run: |
+          if [ -f package-lock.json ]; then
+            sed -i 's|https://artifact-keeper-gusw1.sidp.reports.mn/npm/maximus-dev-npm-virtual/|https://registry.npmjs.org/|g' package-lock.json
+          fi
+          npm ci --legacy-peer-deps || npm install --legacy-peer-deps
 
       - name: Install root test dependencies
         run: npm ci || npm install

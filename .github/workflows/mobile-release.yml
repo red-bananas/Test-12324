@@ -71,7 +71,14 @@ jobs:
 
       - name: Install app dependencies
         working-directory: ${{ steps.paths.outputs.dir }}
-        run: npm ci --legacy-peer-deps || npm install --legacy-peer-deps
+        env:
+          NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
+        run: |
+          # package-lock may reference a corporate mirror; GitHub runners use public npm.
+          if [ -f package-lock.json ]; then
+            sed -i 's|https://artifact-keeper-gusw1.sidp.reports.mn/npm/maximus-dev-npm-virtual/|https://registry.npmjs.org/|g' package-lock.json
+          fi
+          npm ci --legacy-peer-deps || npm install --legacy-peer-deps
 
       - name: Unit tests
         run: npm run test:mobile -- "${{ steps.meta.outputs.slug }}"
