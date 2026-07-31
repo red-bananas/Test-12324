@@ -31,7 +31,12 @@
         "expo-build-properties",
         {
           "android": {
-            "minSdkVersion": 24
+            "minSdkVersion": 24,
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "kotlinVersion": "2.0.21",
+            "enableMinifyInReleaseBuilds": false,
+            "extraProguardRules": "-keep class com.google.android.gms.** { *; }\n-keep class com.google.ads.** { *; }\n-dontwarn com.google.android.gms.**"
           }
         }
       ],
@@ -39,7 +44,10 @@
         "react-native-google-mobile-ads",
         {
           "androidAppId": "ca-app-pub-8557764165565608~1296387874",
-          "iosAppId": "ca-app-pub-8557764165565608~1296387874"
+          "iosAppId": "ca-app-pub-8557764165565608~1296387874",
+          "delayAppMeasurementInit": false,
+          "optimizeInitialization": true,
+          "optimizeAdLoading": true
         }
       ]
     ],
