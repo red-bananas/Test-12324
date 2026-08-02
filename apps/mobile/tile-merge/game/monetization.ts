@@ -1,8 +1,8 @@
 /** Phase 1 = free, no ads. Phase 2 turns on AdMob + rewarded flows. */
 export const monetizationConfig = {
   phase: 2 as 1 | 2,
-  freeUndosPerGame: 3,
-  maxRewardedUndosPerGame: 3,
+  freeUndosPerGame: 1,
+  maxResumeUndosOnGameOver: 3, // moves restored per game-over ad (one ad)
   interstitialEveryNGames: 3,
   removeAdsProductId: "tile_merge_remove_ads",
   admobAppId: "ca-app-pub-8557764165565608~1296387874",

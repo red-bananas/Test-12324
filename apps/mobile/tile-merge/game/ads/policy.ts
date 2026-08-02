@@ -1,13 +1,4 @@
-import { monetizationConfig } from "../monetization";
-
-/** Max opt-in rewarded undos per game — retention-safe cap. */
-export function canUseRewardedUndo(rewardedUndosUsed: number): boolean {
-  return rewardedUndosUsed < monetizationConfig.maxRewardedUndosPerGame;
-}
-
-export function remainingRewardedUndos(rewardedUndosUsed: number): number {
-  return Math.max(
-    0,
-    monetizationConfig.maxRewardedUndosPerGame - rewardedUndosUsed,
-  );
+/** Rewarded undos are unlimited — player watches an ad each time after the free undo. */
+export function canUseRewardedUndo(): boolean {
+  return true;
 }

@@ -1,20 +1,20 @@
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { palette } from "../game/colors";
-import { DISPLAY_NAME, monetizationConfig } from "../game/monetization";
+import { DISPLAY_NAME } from "../game/monetization";
+import type { UndoButtonState } from "../game/undoUi";
 import { AnimatedScore } from "./AnimatedScore";
+import { UndoButton } from "./UndoButton";
 
 interface ScoreHeaderProps {
   score: number;
   best: number;
   onNewGame: () => void;
-  onUndo: () => void;
-  onRewardedUndo: () => void;
+  onUndoPress: () => void;
   onOpenSettings: () => void;
-  canUndo: boolean;
-  canRewardedUndo: boolean;
-  rewardedUndoPending: boolean;
-  freeUndosLeft: number;
-  rewardedUndosRemaining: number;
+  undoState: UndoButtonState;
+  undoPending: boolean;
   reduceMotion: boolean;
   isNewBest: boolean;
 }
@@ -23,45 +23,27 @@ export function ScoreHeader({
   score,
   best,
   onNewGame,
-  onUndo,
-  onRewardedUndo,
+  onUndoPress,
   onOpenSettings,
-  canUndo,
-  canRewardedUndo,
-  rewardedUndoPending,
-  freeUndosLeft,
-  rewardedUndosRemaining,
+  undoState,
+  undoPending,
   reduceMotion,
   isNewBest,
 }: ScoreHeaderProps) {
-  const undoLabel =
-    monetizationConfig.phase === 1
-      ? "Bonus undo"
-      : `Watch ad → Undo (${rewardedUndosRemaining} left)`;
-
-  const subtitle =
-    freeUndosLeft > 0
-      ? `${freeUndosLeft} free undo${freeUndosLeft === 1 ? "" : "s"} left`
-      : canRewardedUndo
-        ? `${rewardedUndosRemaining} bonus undo${rewardedUndosRemaining === 1 ? "" : "s"} available`
-        : "Out of undos this game";
-
   return (
     <View style={styles.container}>
       <View style={styles.topRow}>
-        <View>
-          <Text accessibilityRole="header" style={styles.title}>
-            {DISPLAY_NAME}
-          </Text>
-          <Text style={styles.subtitle}>{subtitle}</Text>
-        </View>
+        <Text accessibilityRole="header" style={styles.title}>
+          {DISPLAY_NAME}
+        </Text>
         <Pressable
           accessibilityLabel="Open settings"
           accessibilityRole="button"
+          hitSlop={8}
           onPress={onOpenSettings}
-          style={styles.settingsButton}
+          style={({ pressed }) => [styles.settingsButton, pressed && styles.settingsPressed]}
         >
-          <Text style={styles.settingsText}>Settings</Text>
+          <Ionicons color={palette.textMuted} name="settings-outline" size={22} />
         </Pressable>
       </View>
 
@@ -76,38 +58,18 @@ export function ScoreHeader({
       </View>
 
       <View style={styles.actions}>
-        {canRewardedUndo ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={undoLabel}
-            accessibilityState={{ disabled: rewardedUndoPending }}
-            disabled={rewardedUndoPending}
-            onPress={onRewardedUndo}
-            style={[styles.button, styles.buttonRewarded]}
-          >
-            <Text style={styles.buttonRewardedText}>
-              {rewardedUndoPending ? "Loading…" : undoLabel}
-            </Text>
-          </Pressable>
-        ) : (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Undo last move"
-            accessibilityState={{ disabled: !canUndo }}
-            disabled={!canUndo}
-            onPress={onUndo}
-            style={[styles.button, !canUndo && styles.buttonDisabled]}
-          >
-            <Text style={styles.buttonText}>Undo</Text>
-          </Pressable>
-        )}
+        <UndoButton onPress={onUndoPress} pending={undoPending} state={undoState} />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Start new game"
           onPress={onNewGame}
-          style={[styles.button, styles.buttonPrimary]}
+          style={({ pressed }) => [
+            styles.newGameButton,
+            pressed && styles.newGamePressed,
+          ]}
         >
-          <Text style={[styles.buttonText, styles.buttonPrimaryText]}>New game</Text>
+          <FontAwesome color="#1c1b22" name="refresh" size={18} />
+          <Text style={styles.newGameText}>New game</Text>
         </Pressable>
       </View>
     </View>
@@ -130,22 +92,16 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: -0.5,
   },
-  subtitle: {
-    color: palette.textMuted,
-    fontSize: 12,
-    fontWeight: "600",
-    marginTop: 2,
-  },
   settingsButton: {
+    alignItems: "center",
     backgroundColor: palette.board,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    borderRadius: 12,
+    height: 44,
+    justifyContent: "center",
+    width: 44,
   },
-  settingsText: {
-    color: palette.textMuted,
-    fontSize: 13,
-    fontWeight: "700",
+  settingsPressed: {
+    opacity: 0.85,
   },
   scoreRow: {
     flexDirection: "row",
@@ -155,35 +111,25 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 10,
   },
-  button: {
-    backgroundColor: palette.board,
-    borderRadius: 10,
-    flex: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-  buttonPrimary: {
+  newGameButton: {
+    alignItems: "center",
     backgroundColor: palette.accent,
+    borderRadius: 12,
+    flex: 1.15,
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "center",
+    minHeight: 48,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
-  buttonRewarded: {
-    backgroundColor: palette.accentSoft,
+  newGamePressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.98 }],
   },
-  buttonDisabled: {
-    opacity: 0.45,
-  },
-  buttonText: {
-    color: palette.textPrimary,
+  newGameText: {
+    color: "#1c1b22",
     fontSize: 15,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-  buttonPrimaryText: {
-    color: "#1c1b22",
-  },
-  buttonRewardedText: {
-    color: "#1c1b22",
-    fontSize: 14,
     fontWeight: "800",
-    textAlign: "center",
   },
 });

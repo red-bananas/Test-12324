@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useReducer, useState } from "react";
+import { gameOverResumeMoveCount, resolveUndoButtonState } from "../game/undoUi";
 import { detectNewMilestone } from "../game/milestones";
 import {
   triggerInvalidMoveHaptic,
   triggerMergeHaptic,
 } from "../game/haptics";
 import { monetizationConfig } from "../game/monetization";
-import { canUseRewardedUndo } from "../game/ads/policy";
 import { requestRewardedAction } from "../game/rewards";
 import type { GameSession } from "../game/sessionTypes";
 import { defaultSettings, loadSettings, type GameSettings } from "../game/settings";
@@ -63,6 +63,7 @@ export function createSession(best = 0, random?: () => number): GameSession {
     history: [],
     freeUndosLeft: monetizationConfig.freeUndosPerGame,
     rewardedUndosUsed: 0,
+    gameOverResumeUndosUsed: 0,
     moveCount: 0,
   };
 }
@@ -107,6 +108,7 @@ export function sessionReducer(
         ],
         freeUndosLeft: session.freeUndosLeft,
         rewardedUndosUsed: session.rewardedUndosUsed,
+        gameOverResumeUndosUsed: session.gameOverResumeUndosUsed,
         moveCount: session.moveCount + 1,
       };
     }
@@ -121,6 +123,7 @@ export function sessionReducer(
         history: [],
         freeUndosLeft: monetizationConfig.freeUndosPerGame,
         rewardedUndosUsed: 0,
+        gameOverResumeUndosUsed: 0,
         moveCount: 0,
       };
     }
@@ -136,16 +139,50 @@ export function sessionReducer(
         history: session.history.slice(0, -1),
         freeUndosLeft: session.freeUndosLeft - 1,
         rewardedUndosUsed: session.rewardedUndosUsed,
+        gameOverResumeUndosUsed: session.gameOverResumeUndosUsed,
         moveCount: Math.max(0, session.moveCount - 1),
       };
     }
     case "REWARDED_UNDO": {
-      if (
-        session.history.length === 0 ||
-        !canUseRewardedUndo(session.rewardedUndosUsed)
-      ) {
+      if (session.history.length === 0) {
         return session;
       }
+      const wasLost = session.game.status === "lost";
+
+      if (wasLost) {
+        if (session.gameOverResumeUndosUsed > 0) {
+          return session;
+        }
+
+        const steps = Math.min(
+          monetizationConfig.maxResumeUndosOnGameOver,
+          session.history.length,
+        );
+        let history = session.history;
+        let game = session.game;
+        let tiles = session.tiles;
+        let moveCount = session.moveCount;
+
+        for (let step = 0; step < steps; step += 1) {
+          const previous = history[history.length - 1];
+          game = previous.game;
+          tiles = previous.tiles;
+          history = history.slice(0, -1);
+          moveCount = Math.max(0, moveCount - 1);
+        }
+
+        syncTileIdCounter(tiles);
+        return {
+          game,
+          tiles,
+          history,
+          freeUndosLeft: session.freeUndosLeft,
+          rewardedUndosUsed: session.rewardedUndosUsed + 1,
+          gameOverResumeUndosUsed: 1,
+          moveCount,
+        };
+      }
+
       const previous = session.history[session.history.length - 1];
       syncTileIdCounter(previous.tiles);
       return {
@@ -154,6 +191,7 @@ export function sessionReducer(
         history: session.history.slice(0, -1),
         freeUndosLeft: session.freeUndosLeft,
         rewardedUndosUsed: session.rewardedUndosUsed + 1,
+        gameOverResumeUndosUsed: session.gameOverResumeUndosUsed,
         moveCount: Math.max(0, session.moveCount - 1),
       };
     }
@@ -182,6 +220,10 @@ export function sessionReducer(
         rewardedUndosUsed:
           typeof action.session.rewardedUndosUsed === "number"
             ? Math.max(0, action.session.rewardedUndosUsed)
+            : 0,
+        gameOverResumeUndosUsed:
+          typeof action.session.gameOverResumeUndosUsed === "number"
+            ? Math.max(0, action.session.gameOverResumeUndosUsed)
             : 0,
         moveCount: action.session.moveCount ?? 0,
       };
@@ -252,11 +294,14 @@ export function useGameSession(initialBest = 0) {
   }, [session.freeUndosLeft, session.history.length]);
 
   const rewardedUndo = useCallback(async () => {
-    if (
-      session.history.length === 0 ||
-      session.freeUndosLeft > 0 ||
-      !canUseRewardedUndo(session.rewardedUndosUsed)
-    ) {
+    if (session.history.length === 0 || session.freeUndosLeft > 0) {
+      return;
+    }
+    if (session.game.status === "lost") {
+      if (session.gameOverResumeUndosUsed > 0) {
+        return;
+      }
+    } else if (session.game.status !== "playing") {
       return;
     }
 
@@ -271,7 +316,31 @@ export function useGameSession(initialBest = 0) {
     } finally {
       setRewardedUndoPending(false);
     }
-  }, [session.freeUndosLeft, session.history.length, session.rewardedUndosUsed]);
+  }, [
+    session.freeUndosLeft,
+    session.game.status,
+    session.gameOverResumeUndosUsed,
+    session.history.length,
+  ]);
+
+  const requestUndo = useCallback(() => {
+    if (session.history.length === 0) {
+      return;
+    }
+    if (session.freeUndosLeft > 0) {
+      undo();
+      return;
+    }
+    if (session.game.status === "playing" || session.game.status === "lost") {
+      void rewardedUndo();
+    }
+  }, [
+    rewardedUndo,
+    session.freeUndosLeft,
+    session.game.status,
+    session.history.length,
+    undo,
+  ]);
 
   const continuePlaying = useCallback(() => {
     dispatch({ type: "CONTINUE" });
@@ -297,18 +366,18 @@ export function useGameSession(initialBest = 0) {
   }, []);
 
   const highestTile = highestTileValue(session.tiles);
-  const canUndo =
-    session.history.length > 0 && session.freeUndosLeft > 0;
-  const canRewardedUndo =
-    session.history.length > 0 &&
-    session.freeUndosLeft <= 0 &&
-    session.game.status === "playing" &&
-    canUseRewardedUndo(session.rewardedUndosUsed);
-
-  const rewardedUndosRemaining = Math.max(
-    0,
-    monetizationConfig.maxRewardedUndosPerGame - session.rewardedUndosUsed,
+  const resumeUndosRemaining = gameOverResumeMoveCount(
+    session.gameOverResumeUndosUsed > 0,
+    session.history.length,
+    monetizationConfig.maxResumeUndosOnGameOver,
   );
+
+  const undoState = resolveUndoButtonState({
+    hasHistory: session.history.length > 0,
+    freeUndosLeft: session.freeUndosLeft,
+    gameStatus: session.game.status,
+    resumeUndosRemaining,
+  });
 
   return {
     session,
@@ -316,13 +385,13 @@ export function useGameSession(initialBest = 0) {
     newGame,
     undo,
     rewardedUndo,
+    requestUndo,
     continuePlaying,
     hydrateBest,
     restoreSession,
-    canUndo,
-    canRewardedUndo,
+    resumeUndosRemaining,
     rewardedUndoPending,
-    rewardedUndosRemaining,
+    undoState,
     freeUndosLeft: session.freeUndosLeft,
     moveCount: session.moveCount,
     highestTile,

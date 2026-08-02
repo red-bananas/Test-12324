@@ -10,5 +10,6 @@ export interface GameSession extends SessionSnapshot {
   history: SessionSnapshot[];
   freeUndosLeft: number;
   rewardedUndosUsed: number;
+  gameOverResumeUndosUsed: number;
   moveCount: number;
 }

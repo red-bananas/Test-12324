@@ -56,14 +56,13 @@ export default function Home() {
     newGame,
     undo,
     rewardedUndo,
+    requestUndo,
     continuePlaying,
     hydrateBest,
     restoreSession,
-    canUndo,
-    canRewardedUndo,
+    resumeUndosRemaining,
+    undoState,
     rewardedUndoPending,
-    rewardedUndosRemaining,
-    freeUndosLeft,
     moveCount,
     highestTile,
     moveFeedback,
@@ -223,6 +222,7 @@ export default function Home() {
   useKeyboardControls(guardedMove);
 
   const isNewBest = game.score > 0 && game.score >= game.best;
+  const gameEnded = game.status === "lost" || game.status === "won";
 
   const panGesture = useMemo(
     () =>
@@ -261,63 +261,68 @@ export default function Home() {
       <StatusBar style="light" />
       {appReady ? (
       <View style={styles.container}>
-        <ScoreHeader
-          best={game.best}
-          canRewardedUndo={canRewardedUndo}
-          canUndo={canUndo}
-          freeUndosLeft={freeUndosLeft}
-          isNewBest={isNewBest}
-          onNewGame={handleNewGameRequest}
-          onOpenSettings={() => setSettingsOpen(true)}
-          onRewardedUndo={() => {
-            void rewardedUndo();
-          }}
-          onUndo={undo}
-          reduceMotion={settings.reduceMotion}
-          rewardedUndoPending={rewardedUndoPending}
-          rewardedUndosRemaining={rewardedUndosRemaining}
-          score={game.score}
-        />
+        <View
+          pointerEvents={gameEnded ? "none" : "auto"}
+          style={[styles.gameShell, gameEnded && styles.gameShellDimmed]}
+        >
+          <ScoreHeader
+            best={game.best}
+            isNewBest={isNewBest}
+            onNewGame={handleNewGameRequest}
+            onOpenSettings={() => setSettingsOpen(true)}
+            onUndoPress={requestUndo}
+            reduceMotion={settings.reduceMotion}
+            score={game.score}
+            undoPending={rewardedUndoPending}
+            undoState={undoState}
+          />
 
-        <GestureDetector gesture={panGesture}>
-          <View
-            accessibilityLabel="Game board. Swipe or use arrow keys to move tiles."
-            style={styles.boardWrap}
-          >
-            <AnimatedGameBoard
-              reduceMotion={settings.reduceMotion}
-              shakeToken={shakeToken}
-              size={boardSize}
-              tiles={tiles}
-            />
-            <ScorePop
-              points={moveFeedback?.pointsGained ?? 0}
-              reduceMotion={settings.reduceMotion}
-              token={scorePopToken}
-            />
-            <MilestoneToast
-              milestone={activeMilestone}
-              onDone={() => {
-                setActiveMilestone(null);
-                clearMoveFeedback();
-              }}
-              reduceMotion={settings.reduceMotion}
-            />
-            <GameOverlay
-              best={game.best}
-              highestTile={highestTile}
-              lastRunScore={comparisonScore}
-              moveCount={moveCount}
-              onContinue={continuePlaying}
-              onRestart={() => {
-                setComparisonScore(game.score);
-                newGame();
-              }}
-              score={game.score}
-              status={game.status}
-            />
-          </View>
-        </GestureDetector>
+          <GestureDetector gesture={panGesture}>
+            <View
+              accessibilityLabel="Game board. Swipe or use arrow keys to move tiles."
+              style={styles.boardWrap}
+            >
+              <AnimatedGameBoard
+                reduceMotion={settings.reduceMotion}
+                shakeToken={shakeToken}
+                size={boardSize}
+                tiles={tiles}
+              />
+              <ScorePop
+                points={moveFeedback?.pointsGained ?? 0}
+                reduceMotion={settings.reduceMotion}
+                token={scorePopToken}
+              />
+              <MilestoneToast
+                milestone={activeMilestone}
+                onDone={() => {
+                  setActiveMilestone(null);
+                  clearMoveFeedback();
+                }}
+                reduceMotion={settings.reduceMotion}
+              />
+            </View>
+          </GestureDetector>
+        </View>
+
+        {gameEnded ? (
+          <GameOverlay
+            best={game.best}
+            highestTile={highestTile}
+            lastRunScore={comparisonScore}
+            moveCount={moveCount}
+            onContinue={continuePlaying}
+            onResumeUndo={requestUndo}
+            onRestart={() => {
+              setComparisonScore(game.score);
+              newGame();
+            }}
+            resumeUndoPending={rewardedUndoPending}
+            resumeUndosRemaining={resumeUndosRemaining}
+            score={game.score}
+            status={game.status}
+          />
+        ) : null}
       </View>
       ) : null}
 
@@ -365,6 +370,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 20,
     paddingVertical: 8,
+    position: "relative",
+  },
+  gameShell: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  gameShellDimmed: {
+    opacity: 0.32,
   },
   boardWrap: {
     alignSelf: "center",

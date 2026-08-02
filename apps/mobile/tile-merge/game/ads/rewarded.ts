@@ -1,3 +1,4 @@
+import Constants from "expo-constants";
 import { Platform } from "react-native";
 import { monetizationConfig } from "../monetization";
 
@@ -19,10 +20,19 @@ export function getRewardedAdUnitId(): string {
   return monetizationConfig.rewardedUndoUnitId;
 }
 
-function isNativeAdsSupported(): boolean {
+export function isExpoGoClient(): boolean {
+  return (
+    Constants.executionEnvironment === "storeClient" ||
+    Constants.appOwnership === "expo"
+  );
+}
+
+/** Expo Go has no AdMob native module — use preview/production APK for ad testing. */
+export function isNativeAdsSupported(): boolean {
   return (
     monetizationConfig.phase === 2 &&
-    (Platform.OS === "android" || Platform.OS === "ios")
+    (Platform.OS === "android" || Platform.OS === "ios") &&
+    !isExpoGoClient()
   );
 }
 

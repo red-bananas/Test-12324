@@ -1,7 +1,10 @@
+import { useEffect } from "react";
 import {
+  BackHandler,
   Linking,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Switch,
   Text,
@@ -89,10 +92,33 @@ export function SettingsSheet({
   const dailyBestToday =
     stats.dailyBestDate === todayKey() ? stats.dailyBest : 0;
 
+  useEffect(() => {
+    if (!visible) {
+      return;
+    }
+
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      onClose();
+      return true;
+    });
+
+    return () => subscription.remove();
+  }, [onClose, visible]);
+
   return (
-    <Modal animationType="slide" transparent visible={visible}>
+    <Modal
+      animationType="slide"
+      onRequestClose={onClose}
+      transparent
+      visible={visible}
+    >
       <View style={styles.backdrop}>
         <View style={styles.sheet}>
+          <ScrollView
+            contentContainerStyle={styles.sheetContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
           <Text style={styles.title}>Settings</Text>
 
           <SettingRow
@@ -185,6 +211,7 @@ export function SettingsSheet({
           >
             <Text style={styles.doneText}>Done</Text>
           </Pressable>
+          </ScrollView>
         </View>
       </View>
     </Modal>
@@ -201,10 +228,14 @@ const styles = StyleSheet.create({
     backgroundColor: palette.background,
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
-    gap: 8,
+    maxHeight: "88%",
     paddingBottom: 28,
     paddingHorizontal: 20,
     paddingTop: 20,
+  },
+  sheetContent: {
+    gap: 8,
+    paddingBottom: 8,
   },
   title: {
     color: palette.textPrimary,

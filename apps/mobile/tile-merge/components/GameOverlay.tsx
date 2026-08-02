@@ -1,4 +1,6 @@
-import { Pressable, Share, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, Share, StyleSheet, Text, View } from "react-native";
+import Entypo from "@expo/vector-icons/Entypo";
+import { Ionicons } from "@expo/vector-icons";
 import { palette } from "../game/colors";
 import { DISPLAY_NAME, PLAY_STORE_URL } from "../game/monetization";
 import type { GameStatus } from "../game/state";
@@ -10,7 +12,10 @@ interface GameOverlayProps {
   lastRunScore: number;
   highestTile: number;
   moveCount: number;
+  resumeUndosRemaining?: number;
+  resumeUndoPending?: boolean;
   onContinue?: () => void;
+  onResumeUndo?: () => void;
   onRestart: () => void;
 }
 
@@ -45,7 +50,10 @@ export function GameOverlay({
   lastRunScore,
   highestTile,
   moveCount,
+  resumeUndosRemaining = 0,
+  resumeUndoPending = false,
   onContinue,
+  onResumeUndo,
   onRestart,
 }: GameOverlayProps) {
   if (status === "playing") {
@@ -66,6 +74,9 @@ export function GameOverlay({
       title: `${DISPLAY_NAME} score`,
     });
   };
+
+  const canResume =
+    status === "lost" && resumeUndosRemaining > 0 && Boolean(onResumeUndo);
 
   return (
     <View accessibilityViewIsModal style={styles.overlay}>
@@ -90,6 +101,31 @@ export function GameOverlay({
         </View>
 
         <View style={styles.actions}>
+          {canResume ? (
+            <Pressable
+              accessibilityLabel={`Watch ad to undo ${resumeUndosRemaining} moves and resume`}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: resumeUndoPending }}
+              disabled={resumeUndoPending}
+              onPress={onResumeUndo}
+              style={[styles.button, styles.resume]}
+            >
+              {resumeUndoPending ? (
+                <ActivityIndicator color="#1c1b22" size="small" />
+              ) : (
+                <View style={styles.resumeContent}>
+                  <View style={styles.resumeIconStack}>
+                    <Ionicons color="#1c1b22" name="arrow-undo" size={18} />
+                    <View style={styles.resumeCountOverlay}>
+                      <Text style={styles.resumeCountText}>{resumeUndosRemaining}</Text>
+                    </View>
+                  </View>
+                  <Entypo color="#1c1b22" name="youtube" size={14} />
+                  <Text style={styles.resumeText}>Undo</Text>
+                </View>
+              )}
+            </Pressable>
+          ) : null}
           {status === "won" && onContinue ? (
             <Pressable
               accessibilityRole="button"
@@ -123,10 +159,10 @@ const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: "center",
-    backgroundColor: "rgba(28, 27, 34, 0.82)",
-    borderRadius: 16,
+    backgroundColor: "rgba(28, 27, 34, 0.5)",
     justifyContent: "center",
     padding: 16,
+    zIndex: 20,
   },
   card: {
     alignItems: "center",
@@ -208,6 +244,45 @@ const styles = StyleSheet.create({
   },
   secondary: {
     backgroundColor: palette.board,
+  },
+  resume: {
+    backgroundColor: palette.accentSoft,
+    minWidth: 200,
+  },
+  resumeContent: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "center",
+  },
+  resumeIconStack: {
+    height: 20,
+    justifyContent: "center",
+    width: 20,
+  },
+  resumeCountOverlay: {
+    alignItems: "center",
+    backgroundColor: "#1c1b22",
+    borderRadius: 6,
+    bottom: -2,
+    height: 14,
+    justifyContent: "center",
+    minWidth: 14,
+    paddingHorizontal: 2,
+    position: "absolute",
+    right: -6,
+  },
+  resumeCountText: {
+    color: palette.textPrimary,
+    fontSize: 9,
+    fontWeight: "800",
+    lineHeight: 10,
+  },
+  resumeText: {
+    color: "#1c1b22",
+    fontSize: 15,
+    fontWeight: "700",
+    textAlign: "center",
   },
   primaryText: {
     color: "#1c1b22",

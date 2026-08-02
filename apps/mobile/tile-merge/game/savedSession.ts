@@ -28,6 +28,10 @@ function normalizeSession(raw: Partial<GameSession>): GameSession | null {
       typeof raw.rewardedUndosUsed === "number"
         ? Math.max(0, raw.rewardedUndosUsed)
         : 0,
+    gameOverResumeUndosUsed:
+      typeof raw.gameOverResumeUndosUsed === "number"
+        ? Math.max(0, raw.gameOverResumeUndosUsed)
+        : 0,
     moveCount: typeof raw.moveCount === "number" ? Math.max(0, raw.moveCount) : 0,
   };
 }
