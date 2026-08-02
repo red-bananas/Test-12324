@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "auto-app-extensions",
   "private": true,
   "type": "module",
@@ -25,6 +25,8 @@
     "release:utc": "powershell -ExecutionPolicy Bypass -File tools/extensions/github-release.ps1 -Extension utc-clock-pro -Version 2.0.3 -Watch",
     "release:formatkit": "powershell -ExecutionPolicy Bypass -File tools/extensions/github-release.ps1 -Extension formatkit -Version 1.0.0 -Watch",
     "release:file-info": "powershell -ExecutionPolicy Bypass -File tools/extensions/github-release.ps1 -Extension file-info -Version 1.2.0 -Watch",
+    "screenshots:tile-merge": "node tools/mobile/capture-tile-merge-screenshots.mjs && python tools/mobile/prepare-play-store-images.py tile-merge",
+    "icons:tile-merge": "python tools/mobile/generate-tile-merge-icons.py",
     "release:tile-merge": "powershell -ExecutionPolicy Bypass -File tools/mobile/github-release.ps1 -App tile-merge",
     "validate:mobile": "node tools/mobile/validate.mjs",
     "test:mobile": "node tools/mobile/test.mjs",

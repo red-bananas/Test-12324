@@ -7,3 +7,5 @@ Graphics:
 Phone screenshots (portrait):
   screenshot-1-phone.png
   screenshot-2-phone.png
+  screenshot-3-phone.png
+  screenshot-4-phone.png

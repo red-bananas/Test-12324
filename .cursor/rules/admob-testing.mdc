@@ -13,6 +13,7 @@ alwaysApply: false
 3. **Production ad units** only when `EXPO_PUBLIC_USE_PRODUCTION_ADS=true` (EAS `production` profile).
 4. **Expo Go cannot load AdMob** — test ads on an EAS preview APK or dev client build.
 5. **Play Console** — flip Advertising ID + Ads declaration only when shipping a build that serves real ads.
+6. **Android manifest** — if Play declares Advertising ID **Yes**, `app.json` must include `com.google.android.gms.permission.AD_ID` under `expo.android.permissions`. Without it, Android 13+ zeroes the ad ID and Play Console blocks release. `npm run validate:mobile` enforces this when the AdMob plugin is present.
 
 ## Tile Merge IDs (production — do not use in dev)
 

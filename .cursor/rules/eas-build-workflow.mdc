@@ -1,0 +1,9 @@
+# EAS build workflow
+
+When triggering EAS builds (`eas build`) for mobile apps in this repo:
+
+1. **Commit first** — stage and commit all changes that must be in the build (e.g. `app.json`, native config, game code) before running `eas build`. EAS shows the git commit hash on expo.dev; uncommitted fixes are easy to lose track of and CI only sees committed code.
+2. **Build second** — run preview/production builds only after the commit exists locally.
+3. **Push only when the user explicitly asks** — do not `git push` or push tags unless the user requests it.
+
+If the user asks to rebuild without a commit, remind them of this workflow and offer to commit the relevant files first (unless they override).

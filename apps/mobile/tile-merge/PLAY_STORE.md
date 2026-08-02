@@ -275,6 +275,7 @@ When shipping first build with real ads:
 
 - [ ] EAS **production** build (`EXPO_PUBLIC_USE_PRODUCTION_ADS=true`)
 - [ ] **Advertising ID** declaration → Yes
+- [ ] **Manifest:** `com.google.android.gms.permission.AD_ID` in `app.json` → `expo.android.permissions` (required when declaration is Yes; `validate:mobile` checks this)
 - [ ] **Ads declaration** → Yes, contains ads
 - [ ] **Data safety** updated for ad SDK data collection
 - [ ] **Privacy policy** deployed (`docs/privacy/tile-merge.html` → GitHub Pages)

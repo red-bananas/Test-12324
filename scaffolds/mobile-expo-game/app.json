@@ -1,18 +1,49 @@
 {
   "expo": {
-    "name": "Clone Game",
-    "slug": "clone-game",
+    "name": "Clone App",
+    "slug": "clone-app",
     "version": "0.1.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "ios": { "supportsTablet": true, "bundleIdentifier": "app.cloned.game" },
-    "android": { "package": "app.cloned.game" },
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1c1b22"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.autoapp.cloneapp"
+    },
+    "android": {
+      "package": "app.autoapp.cloneapp",
+      "versionCode": 1,
+      "permissions": [
+        "com.google.android.gms.permission.AD_ID"
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1c1b22"
+      }
+    },
     "plugins": [
       "expo-router",
       [
         "expo-build-properties",
-        { "android": { "minSdkVersion": 24 } }
+        {
+          "android": {
+            "minSdkVersion": 24,
+            "enableMinifyInReleaseBuilds": false
+          }
+        }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
+          "iosAppId": "ca-app-pub-3940256099942544~3347511713"
+        }
       ]
     ]
   }
