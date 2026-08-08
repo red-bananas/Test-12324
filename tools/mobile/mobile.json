@@ -5,6 +5,13 @@
       "displayName": "Tile Merge",
       "androidPackage": "app.autoapp.tilemerge",
       "playStoreTrack": "internal"
+    },
+    "image-to-pdf": {
+      "dir": "apps/mobile/image-to-pdf",
+      "displayName": "Image to PDF",
+      "androidPackage": "app.autoapp.imagetopdf",
+      "playStoreTrack": "internal",
+      "webPort": 8092
     }
   }
 }

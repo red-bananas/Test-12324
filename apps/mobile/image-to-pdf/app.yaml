@@ -1,0 +1,11 @@
+slug: image-to-pdf
+lane: mobile
+origin: manual
+displayName: Image to PDF
+androidPackage: app.autoapp.imagetopdf
+iosBundleId: app.autoapp.imagetopdf
+status: in-progress
+archetype: utility
+monetization: interstitial-phase2
+store: google-play
+version: 1.0.0

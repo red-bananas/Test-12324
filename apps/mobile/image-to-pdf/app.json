@@ -1,0 +1,53 @@
+{
+  "expo": {
+    "name": "Image to PDF",
+    "slug": "image-to-pdf",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0B0D14"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.autoapp.imagetopdf"
+    },
+    "android": {
+      "package": "app.autoapp.imagetopdf",
+      "versionCode": 1,
+      "permissions": ["android.permission.CAMERA"],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0B0D14"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 24,
+            "enableMinifyInReleaseBuilds": false
+          }
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Image to PDF to take photos for your PDF documents."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Image to PDF to pick photos to convert into a PDF."
+        }
+      ]
+    ]
+  }
+}
