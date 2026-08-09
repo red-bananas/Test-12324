@@ -4,6 +4,7 @@ import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ThemeProvider, useAppTheme } from "../lib/theme";
+import { FeedbackProvider } from "../components/Feedback";
 
 function ThemedStack() {
   const { resolvedScheme } = useAppTheme();
@@ -20,7 +21,9 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <ThemeProvider>
-          <ThemedStack />
+          <FeedbackProvider>
+            <ThemedStack />
+          </FeedbackProvider>
         </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

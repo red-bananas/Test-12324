@@ -1,22 +1,15 @@
-import { useCallback, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { RecentList } from "../components/RecentList";
+import { useFeedback } from "../components/Feedback";
+import { RecentList, type RecentPdfAction } from "../components/RecentList";
 import { triggerTapHaptic } from "../lib/haptics";
-import { pickImagesFromGallery } from "../lib/picker";
+import { pickImagesFromGallery, warmGalleryPicker } from "../lib/picker";
 import { loadRecents, sortRecentsDesc } from "../lib/recents";
 import { clearSession, setSessionPages } from "../lib/session";
-import { openFile } from "../lib/share";
+import { openFile, saveCopyToFiles, shareFile, showInFilesLocation } from "../lib/share";
 import { AppTheme, useAppTheme } from "../lib/theme";
 import type { RecentPdf } from "../lib/types";
 
@@ -24,16 +17,21 @@ export default function HubScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { theme } = useAppTheme();
+  const { showToast, showMessage } = useFeedback();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [recents, setRecents] = useState<RecentPdf[]>([]);
-  const [loadingGallery, setLoadingGallery] = useState(false);
 
   const refreshRecents = useCallback(async () => {
     setRecents(sortRecentsDesc(await loadRecents()));
   }, []);
 
+  useEffect(() => {
+    warmGalleryPicker();
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
+      warmGalleryPicker();
       void refreshRecents();
     }, [refreshRecents]),
   );
@@ -46,16 +44,13 @@ export default function HubScreen() {
 
   const openGallery = async () => {
     await triggerTapHaptic();
-    setLoadingGallery(true);
     try {
       const pages = await pickImagesFromGallery();
       if (pages.length === 0) return;
       setSessionPages(pages);
       router.push("/editor");
     } catch {
-      Alert.alert("Couldn't read images", "Try selecting JPG or PNG photos.");
-    } finally {
-      setLoadingGallery(false);
+      showMessage("Couldn't read images", "One or more photos could not be opened. Try different images.");
     }
   };
 
@@ -64,18 +59,53 @@ export default function HubScreen() {
     try {
       await openFile(item.path);
     } catch {
-      Alert.alert("Couldn't open PDF", "The file may have been moved or removed.");
+      showMessage("Couldn't open PDF", "The file may have been moved or removed.");
+    }
+  };
+
+  const handleRecentAction = async (item: RecentPdf, action: RecentPdfAction) => {
+    await triggerTapHaptic();
+    try {
+      if (action === "open") {
+        await openFile(item.path);
+        return;
+      }
+      if (action === "share") {
+        await shareFile(item.path);
+        return;
+      }
+      if (action === "showInFiles") {
+        await showInFilesLocation(item.path);
+        return;
+      }
+      const copied = await saveCopyToFiles(item.path, item.name);
+      if (copied) {
+        showToast("Copy saved to the folder you selected.", "success");
+      }
+    } catch {
+      if (action === "share") {
+        showMessage("Couldn't share PDF", "The file may have been moved or removed.");
+        return;
+      }
+      if (action === "showInFiles") {
+        showMessage("Couldn't open in Files", "Open Files and browse Android/data for this app.");
+        return;
+      }
+      if (action === "saveAs") {
+        showMessage("Couldn't save a copy", "Choose another folder and try again.");
+        return;
+      }
+      showMessage("Couldn't open PDF", "The file may have been moved or removed.");
     }
   };
 
   return (
     <View style={styles.screen}>
-      <ScrollView
-        contentContainerStyle={[
-          styles.scroll,
-          { paddingTop: insets.top + theme.space.sm, paddingBottom: insets.bottom + theme.space.xl },
+      <View
+        style={[
+          styles.header,
+          { paddingTop: insets.top + theme.space.sm, paddingHorizontal: theme.space.md },
         ]}
-        showsVerticalScrollIndicator={false}
       >
         <View style={styles.topBar}>
           <View style={styles.brand}>
@@ -99,43 +129,33 @@ export default function HubScreen() {
           <Text style={styles.subhead}>Turn photos into one clean, shareable document.</Text>
         </View>
 
-        <Pressable
-          onPress={() => void openGallery()}
-          disabled={loadingGallery}
-          accessibilityRole="button"
-          accessibilityLabel="Pick from gallery"
-          accessibilityState={{ busy: loadingGallery }}
-          style={({ pressed }) => [styles.primaryAction, pressed && styles.primaryPressed]}
-        >
-          <View style={styles.primaryIcon}>
-            {loadingGallery ? (
-              <ActivityIndicator color={theme.accentText} />
-            ) : (
-              <Ionicons name="images-outline" size={25} color={theme.accentText} />
-            )}
-          </View>
-          <View style={styles.actionCopy}>
-            <Text style={styles.primaryTitle}>{loadingGallery ? "Loading photos…" : "Gallery"}</Text>
-            <Text style={styles.primarySubtitle}>Choose multiple photos from your device</Text>
-          </View>
-          <Ionicons name="arrow-forward" size={21} color={theme.accentText} />
-        </Pressable>
+        <View style={styles.actionsRow}>
+          <Pressable
+            onPress={() => void openGallery()}
+            accessibilityRole="button"
+            accessibilityLabel="Pick from gallery"
+            style={({ pressed }) => [styles.galleryTile, pressed && styles.primaryPressed]}
+          >
+            <View style={styles.galleryIcon}>
+              <Ionicons name="images-outline" size={24} color={theme.accentText} />
+            </View>
+            <Text style={styles.galleryTitle}>Gallery</Text>
+            <Text style={styles.gallerySubtitle}>Pick photos</Text>
+          </Pressable>
 
-        <Pressable
-          onPress={() => void openCamera()}
-          accessibilityRole="button"
-          accessibilityLabel="Open camera"
-          style={({ pressed }) => [styles.secondaryAction, pressed && styles.pressed]}
-        >
-          <View style={styles.secondaryIcon}>
-            <Ionicons name="camera-outline" size={22} color={theme.accentBright} />
-          </View>
-          <View style={styles.actionCopy}>
-            <Text style={styles.secondaryTitle}>Camera</Text>
-            <Text style={styles.secondarySubtitle}>Scan pages one by one</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
-        </Pressable>
+          <Pressable
+            onPress={() => void openCamera()}
+            accessibilityRole="button"
+            accessibilityLabel="Open camera"
+            style={({ pressed }) => [styles.cameraTile, pressed && styles.pressed]}
+          >
+            <View style={styles.cameraIcon}>
+              <Ionicons name="camera-outline" size={22} color={theme.accentBright} />
+            </View>
+            <Text style={styles.cameraTitle}>Camera</Text>
+            <Text style={styles.cameraSubtitle}>Scan pages</Text>
+          </Pressable>
+        </View>
 
         <View style={styles.trustLine} accessibilityLabel="Private, works offline, no watermark">
           <Ionicons name="shield-checkmark-outline" size={15} color={theme.success} />
@@ -146,14 +166,22 @@ export default function HubScreen() {
           <Text style={styles.trustText}>No watermark</Text>
         </View>
 
-        <View style={styles.recentsSection}>
-          <View style={styles.sectionHeading}>
-            <Text style={styles.sectionTitle}>Recent PDFs</Text>
-            {recents.length > 5 ? <Text style={styles.sectionMeta}>{recents.length} files</Text> : null}
-          </View>
-          <RecentList items={recents} onPress={openRecent} />
+        <View style={styles.recentsHeading}>
+          <Text style={styles.sectionTitle}>Recent PDFs</Text>
+          {recents.length > 0 ? <Text style={styles.sectionMeta}>{recents.length} files</Text> : null}
         </View>
-      </ScrollView>
+      </View>
+
+      <RecentList
+        items={recents}
+        onPress={openRecent}
+        onMenuAction={handleRecentAction}
+        style={styles.recentsList}
+        contentContainerStyle={{
+          paddingHorizontal: theme.space.md,
+          paddingBottom: insets.bottom + theme.space.xl,
+        }}
+      />
     </View>
   );
 }
@@ -161,7 +189,7 @@ export default function HubScreen() {
 function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: theme.bg },
-    scroll: { paddingHorizontal: theme.space.md, gap: 12 },
+    header: { gap: 12 },
     topBar: { minHeight: 56, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
     brand: { flexDirection: "row", alignItems: "center", gap: 10 },
     brandMark: {
@@ -183,54 +211,56 @@ function createStyles(theme: AppTheme) {
       alignItems: "center",
       justifyContent: "center",
     },
-    intro: { marginTop: theme.space.md, marginBottom: theme.space.sm, gap: 6 },
+    intro: { marginTop: theme.space.xs, gap: 6 },
     headline: { ...theme.type.hero, color: theme.text },
     subhead: { color: theme.textSecondary, fontSize: 14, lineHeight: 20 },
-    primaryAction: {
-      minHeight: 94,
-      flexDirection: "row",
+    actionsRow: { flexDirection: "row", gap: 10 },
+    galleryTile: {
+      flex: 1,
+      minHeight: 108,
       alignItems: "center",
-      gap: theme.space.md,
+      justifyContent: "center",
+      gap: 6,
       padding: theme.space.md,
       borderRadius: theme.radius.xl,
       backgroundColor: theme.accent,
       ...theme.shadow.accent,
     },
     primaryPressed: { opacity: 0.92, transform: [{ scale: 0.985 }] },
-    primaryIcon: {
-      width: 52,
-      height: 52,
+    galleryIcon: {
+      width: 48,
+      height: 48,
       borderRadius: theme.radius.md,
       backgroundColor: "rgba(255,255,255,0.16)",
       alignItems: "center",
       justifyContent: "center",
     },
-    actionCopy: { flex: 1, gap: 4 },
-    primaryTitle: { color: theme.accentText, fontSize: 16, fontWeight: "700" },
-    primarySubtitle: { color: "rgba(255,255,255,0.76)", fontSize: 12, lineHeight: 17 },
-    secondaryAction: {
-      minHeight: 76,
-      flexDirection: "row",
+    galleryTitle: { color: theme.accentText, fontSize: 15, fontWeight: "700" },
+    gallerySubtitle: { color: "rgba(255,255,255,0.76)", fontSize: 11, textAlign: "center" },
+    cameraTile: {
+      flex: 1,
+      minHeight: 108,
       alignItems: "center",
-      gap: theme.space.md,
-      padding: 14,
-      borderRadius: theme.radius.lg,
+      justifyContent: "center",
+      gap: 6,
+      padding: theme.space.md,
+      borderRadius: theme.radius.xl,
       backgroundColor: theme.surface,
       borderWidth: 1,
       borderColor: theme.border,
     },
-    secondaryIcon: {
-      width: 46,
-      height: 46,
+    cameraIcon: {
+      width: 48,
+      height: 48,
       borderRadius: theme.radius.md,
       backgroundColor: theme.accentMuted,
       alignItems: "center",
       justifyContent: "center",
     },
-    secondaryTitle: { color: theme.text, fontSize: 15, fontWeight: "700" },
-    secondarySubtitle: { color: theme.textTertiary, fontSize: 12 },
+    cameraTitle: { color: theme.text, fontSize: 15, fontWeight: "700" },
+    cameraSubtitle: { color: theme.textTertiary, fontSize: 11, textAlign: "center" },
     trustLine: {
-      minHeight: 40,
+      minHeight: 32,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
@@ -239,10 +269,16 @@ function createStyles(theme: AppTheme) {
     },
     trustText: { color: theme.textTertiary, fontSize: 11 },
     trustDot: { color: theme.borderStrong, fontSize: 11 },
-    recentsSection: { marginTop: theme.space.sm },
-    sectionHeading: { minHeight: 36, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+    recentsHeading: {
+      minHeight: 32,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginTop: theme.space.xs,
+    },
     sectionTitle: { color: theme.textSecondary, fontSize: 13, fontWeight: "700" },
     sectionMeta: { color: theme.textTertiary, fontSize: 11 },
+    recentsList: { flex: 1 },
     pressed: { opacity: 0.7 },
   });
 }

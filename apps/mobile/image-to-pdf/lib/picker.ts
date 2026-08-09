@@ -1,8 +1,19 @@
 import { createPageId } from "./pages";
 import type { PdfPage } from "./types";
 
-async function loadPicker() {
-  return import("expo-image-picker");
+let pickerModule: typeof import("expo-image-picker") | null = null;
+
+function loadPicker() {
+  if (!pickerModule) {
+    // require keeps Jest happy; module is still loaded once on first Gallery use.
+    pickerModule = require("expo-image-picker") as typeof import("expo-image-picker");
+  }
+  return pickerModule;
+}
+
+/** Preload expo-image-picker so the first Gallery tap opens instantly. */
+export function warmGalleryPicker(): void {
+  loadPicker();
 }
 
 function toPdfPage(asset: {
@@ -20,7 +31,7 @@ function toPdfPage(asset: {
 }
 
 export async function pickImagesFromGallery(): Promise<PdfPage[]> {
-  const Picker = await loadPicker();
+  const Picker = loadPicker();
   const result = await Picker.launchImageLibraryAsync({
     mediaTypes: ["images"],
     allowsMultipleSelection: true,

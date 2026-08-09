@@ -1,6 +1,8 @@
 import { render, screen } from "@testing-library/react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import Home from "../app/index";
+import { FeedbackProvider } from "../components/Feedback";
+import { ThemeProvider } from "../lib/theme";
 
 const initialMetrics = {
   frame: { x: 0, y: 0, width: 390, height: 844 },
@@ -11,7 +13,11 @@ describe("Image to PDF smoke", () => {
   it("renders the hub without crashing", async () => {
     render(
       <SafeAreaProvider initialMetrics={initialMetrics}>
-        <Home />
+        <ThemeProvider>
+          <FeedbackProvider>
+            <Home />
+          </FeedbackProvider>
+        </ThemeProvider>
       </SafeAreaProvider>,
     );
 

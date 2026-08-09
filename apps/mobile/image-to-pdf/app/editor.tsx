@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   BackHandler,
   Image,
   Pressable,
@@ -12,30 +11,30 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFeedback } from "../components/Feedback";
 import { PageStrip } from "../components/PageStrip";
 import { ScreenHeader } from "../components/ScreenHeader";
 import { IconToolButton } from "../components/ui";
-import { displayExportPath } from "../lib/fs";
 import { triggerSuccessHaptic, triggerTapHaptic } from "../lib/haptics";
 import { deletePage, reorderPages, rotatePage, shouldWarnLargeDoc } from "../lib/pages";
-import { pickImagesFromGallery } from "../lib/picker";
+import { pickImagesFromGallery, warmGalleryPicker } from "../lib/picker";
 import { exportPdf } from "../lib/pdf";
 import { addRecent } from "../lib/recents";
-import { defaultExportSettings, loadExportSettings } from "../lib/settings";
+import { loadExportSettings } from "../lib/settings";
 import { clearSession, getSessionPages, setSessionPages } from "../lib/session";
 import { AppTheme, useAppTheme } from "../lib/theme";
-import { MAX_PAGES, type ExportSettings, type PdfPage } from "../lib/types";
+import { MAX_PAGES, type PdfPage } from "../lib/types";
 
 export default function EditorScreen() {
   const router = useRouter();
   const { e2e } = useLocalSearchParams<{ e2e?: string }>();
   const insets = useSafeAreaInsets();
   const { theme } = useAppTheme();
+  const { showMessage, confirm } = useFeedback();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [pages, setPages] = useState<PdfPage[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [exporting, setExporting] = useState(false);
-  const [settings, setSettings] = useState<ExportSettings>(defaultExportSettings);
 
   const leaveEditor = useCallback(() => {
     clearSession();
@@ -60,7 +59,6 @@ export default function EditorScreen() {
   );
 
   useEffect(() => {
-    void loadExportSettings().then(setSettings);
     if (e2e === "1") {
       const fixture: PdfPage[] = [
         {
@@ -101,6 +99,7 @@ export default function EditorScreen() {
 
   const onAddPages = async () => {
     await triggerTapHaptic();
+    warmGalleryPicker();
     try {
       const added = await pickImagesFromGallery();
       if (added.length === 0) return;
@@ -109,26 +108,25 @@ export default function EditorScreen() {
       const next = [...pages, ...accepted];
       syncPages(next, pages.length);
       if (accepted.length < added.length) {
-        Alert.alert("Page limit reached", `A PDF can contain up to ${MAX_PAGES} pages.`);
+        showMessage("Page limit reached", `A PDF can contain up to ${MAX_PAGES} pages.`);
       }
     } catch {
-      Alert.alert("Couldn't add photos", "Try selecting JPG or PNG photos.");
+      showMessage("Couldn't add photos", "One or more images could not be opened. Try different photos.");
     }
   };
 
   const onDelete = () => {
     if (pages.length <= 1) {
-      Alert.alert("Keep at least one page");
+      showMessage("Keep at least one page");
       return;
     }
-    Alert.alert("Delete this page?", `Page ${selectedIndex + 1} will be removed.`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () => syncPages(deletePage(pages, selectedIndex), selectedIndex),
-      },
-    ]);
+    confirm({
+      title: "Delete this page?",
+      message: `Page ${selectedIndex + 1} will be removed.`,
+      confirmLabel: "Delete",
+      destructive: true,
+      onConfirm: () => syncPages(deletePage(pages, selectedIndex), selectedIndex),
+    });
   };
 
   const runExport = async () => {
@@ -145,7 +143,6 @@ export default function EditorScreen() {
         createdAt: new Date().toISOString(),
       });
       await triggerSuccessHaptic();
-      setSessionPages([]);
       router.replace({
         pathname: "/success",
         params: {
@@ -153,11 +150,10 @@ export default function EditorScreen() {
           path: result.filePath,
           sizeBytes: String(result.sizeBytes),
           pageCount: String(result.pageCount),
-          displayPath: displayExportPath(result.filePath),
         },
       });
     } catch (error) {
-      Alert.alert(
+      showMessage(
         "Export failed",
         error instanceof Error ? error.message : "Try fewer pages or free up storage.",
       );
@@ -168,28 +164,25 @@ export default function EditorScreen() {
 
   const onExport = () => {
     if (pages.length === 0) {
-      Alert.alert("Add at least one page");
+      showMessage("Add at least one page");
       return;
     }
     if (shouldWarnLargeDoc(pages.length)) {
-      Alert.alert(
-        "Large document",
-        `${pages.length} pages may take a while and use more memory. Continue?`,
-        [
-          { text: "Cancel", style: "cancel" },
-          { text: "Create PDF", onPress: () => void runExport() },
-        ],
-      );
+      confirm({
+        title: "Large document",
+        message: `${pages.length} pages may take a while and use more memory. Continue?`,
+        confirmLabel: "Create PDF",
+        onConfirm: () => void runExport(),
+      });
       return;
     }
     void runExport();
   };
 
   const current = pages[selectedIndex];
-  const qualityLabel = settings.jpegQuality >= 0.94 ? "Best" : settings.jpegQuality <= 0.71 ? "Smaller" : "Balanced";
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top + theme.space.xs }]}>
+    <View style={[styles.screen, { paddingTop: insets.top + theme.space.xs, paddingBottom: insets.bottom + theme.space.md }]}>
       <ScreenHeader
         title="Edit document"
         subtitle={
@@ -200,13 +193,25 @@ export default function EditorScreen() {
         onBack={leaveEditor}
         rightSlot={
           <Pressable
-            onPress={() => void onAddPages()}
+            onPress={onExport}
+            disabled={exporting}
             accessibilityRole="button"
-            accessibilityLabel="Add more photos"
-            style={({ pressed }) => [styles.addButton, pressed && styles.pressed]}
+            accessibilityLabel="Export PDF"
+            accessibilityState={{ busy: exporting }}
+            style={({ pressed }) => [
+              styles.exportButton,
+              pressed && !exporting && styles.exportPressed,
+              exporting && styles.exportDisabled,
+            ]}
           >
-            <Ionicons name="add" size={18} color={theme.accentBright} />
-            <Text style={styles.addText}>Add</Text>
+            {exporting ? (
+              <ActivityIndicator size="small" color={theme.accentText} />
+            ) : (
+              <>
+                <Ionicons name="document-text-outline" size={16} color={theme.accentText} />
+                <Text style={styles.exportText}>Create</Text>
+              </>
+            )}
           </Pressable>
         }
       />
@@ -237,32 +242,8 @@ export default function EditorScreen() {
         onReorder={(fromIndex, toIndex) => {
           syncPages(reorderPages(pages, fromIndex, toIndex), toIndex);
         }}
+        onAddPages={() => void onAddPages()}
       />
-
-      <View style={[styles.footer, { paddingBottom: insets.bottom + theme.space.md }]}>
-        <Pressable
-          onPress={onExport}
-          disabled={exporting}
-          accessibilityRole="button"
-          accessibilityLabel="Export PDF"
-          accessibilityState={{ busy: exporting }}
-          style={({ pressed }) => [
-            styles.exportButton,
-            pressed && !exporting && styles.exportPressed,
-            exporting && styles.exportDisabled,
-          ]}
-        >
-          <View style={styles.exportLabel}>
-            {exporting ? (
-              <ActivityIndicator color={theme.accentText} />
-            ) : (
-              <Ionicons name="document-text-outline" size={20} color={theme.accentText} />
-            )}
-            <Text style={styles.exportText}>{exporting ? "Creating PDF…" : "Create PDF"}</Text>
-          </View>
-          <Text style={styles.exportMeta}>{settings.paperSize} · {qualityLabel}</Text>
-        </Pressable>
-      </View>
     </View>
   );
 }
@@ -270,15 +251,20 @@ export default function EditorScreen() {
 function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: theme.bg, paddingHorizontal: theme.space.md, gap: 10 },
-    addButton: {
-      minHeight: 44,
+    exportButton: {
+      height: 36,
+      minWidth: 88,
+      paddingHorizontal: 12,
+      borderRadius: theme.radius.md,
+      backgroundColor: theme.accent,
       flexDirection: "row",
       alignItems: "center",
-      justifyContent: "flex-end",
-      gap: 3,
-      paddingHorizontal: 2,
+      justifyContent: "center",
+      gap: 5,
     },
-    addText: { color: theme.accentBright, fontSize: 12, fontWeight: "700" },
+    exportText: { color: theme.accentText, fontSize: 12, fontWeight: "700" },
+    exportPressed: { opacity: 0.65 },
+    exportDisabled: { opacity: 0.55 },
     previewStage: {
       flex: 1,
       minHeight: 210,
@@ -301,29 +287,5 @@ function createStyles(theme: AppTheme) {
     },
     pageCountText: { color: theme.textSecondary, fontSize: 11, fontWeight: "700" },
     toolRow: { flexDirection: "row", justifyContent: "center" },
-    footer: {
-      marginHorizontal: -theme.space.md,
-      paddingHorizontal: theme.space.md,
-      paddingTop: 10,
-      borderTopWidth: 1,
-      borderTopColor: theme.border,
-      backgroundColor: theme.bgElevated,
-    },
-    exportButton: {
-      minHeight: 58,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      paddingHorizontal: theme.space.md,
-      borderRadius: theme.radius.lg,
-      backgroundColor: theme.accent,
-      ...theme.shadow.accent,
-    },
-    exportLabel: { flexDirection: "row", alignItems: "center", gap: theme.space.sm },
-    exportText: { color: theme.accentText, fontSize: 16, fontWeight: "700" },
-    exportMeta: { color: "rgba(255,255,255,0.76)", fontSize: 11, fontWeight: "500" },
-    exportPressed: { opacity: 0.92, transform: [{ scale: 0.99 }] },
-    exportDisabled: { opacity: 0.65 },
-    pressed: { opacity: 0.65 },
   });
 }

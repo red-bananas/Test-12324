@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import {
-  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -13,8 +12,10 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFeedback } from "../components/Feedback";
+import { ScreenHeader } from "../components/ScreenHeader";
 import { PrimaryButton, SecondaryButton } from "../components/ui";
-import { displayExportPath, formatFileSize, renamePdf } from "../lib/fs";
+import { formatFileSize, renamePdf } from "../lib/fs";
 import { renameRecent } from "../lib/recents";
 import { clearSession } from "../lib/session";
 import { openFile, saveCopyToFiles, shareFile } from "../lib/share";
@@ -24,18 +25,17 @@ export default function SuccessScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { theme } = useAppTheme();
+  const { showToast, showMessage } = useFeedback();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const params = useLocalSearchParams<{
     name?: string;
     path?: string;
     sizeBytes?: string;
     pageCount?: string;
-    displayPath?: string;
   }>();
 
   const [name, setName] = useState(params.name ?? "document.pdf");
   const [path, setPath] = useState(params.path ?? "");
-  const [displayPath, setDisplayPath] = useState(params.displayPath ?? params.path ?? "");
   const [renameVisible, setRenameVisible] = useState(false);
   const [renameDraft, setRenameDraft] = useState(name.replace(/\.pdf$/i, ""));
   const [renaming, setRenaming] = useState(false);
@@ -46,7 +46,7 @@ export default function SuccessScreen() {
     try {
       await shareFile(path);
     } catch {
-      Alert.alert("Couldn't share PDF", "The file is still saved on this device.");
+      showMessage("Couldn't share PDF", "The file is still saved on this device.");
     }
   };
 
@@ -54,17 +54,26 @@ export default function SuccessScreen() {
     try {
       await openFile(path);
     } catch {
-      Alert.alert("Couldn't open PDF", "Install or enable a PDF viewer, then try again.");
+      showMessage("Couldn't open PDF", "Install or enable a PDF viewer, then try again.");
     }
   };
 
-  const saveToFiles = async () => {
+  const saveAs = async () => {
     try {
       const copied = await saveCopyToFiles(path, name);
-      if (copied) Alert.alert("Copy saved", "The PDF is now available in the folder you selected.");
+      if (copied) showToast("Copy saved to the folder you selected.", "success");
     } catch {
-      Alert.alert("Couldn't save a copy", "Choose another folder and try again.");
+      showMessage("Couldn't save a copy", "Choose another folder and try again.");
     }
+  };
+
+  const backToEdit = () => {
+    router.replace("/editor");
+  };
+
+  const createAnother = () => {
+    clearSession();
+    router.replace("/");
   };
 
   const commitRename = async () => {
@@ -76,18 +85,20 @@ export default function SuccessScreen() {
       await renameRecent(previousPath, { path: renamed.filePath, name: renamed.fileName });
       setName(renamed.fileName);
       setPath(renamed.filePath);
-      setDisplayPath(displayExportPath(renamed.filePath));
       setRenameDraft(renamed.fileName.replace(/\.pdf$/i, ""));
       setRenameVisible(false);
+      showToast("PDF renamed.", "success");
     } catch (error) {
-      Alert.alert("Couldn't rename PDF", error instanceof Error ? error.message : "Try a different name.");
+      showMessage("Couldn't rename PDF", error instanceof Error ? error.message : "Try a different name.");
     } finally {
       setRenaming(false);
     }
   };
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top + theme.space.xxl, paddingBottom: insets.bottom + theme.space.md }]}>
+    <View style={[styles.screen, { paddingTop: insets.top + theme.space.xs, paddingBottom: insets.bottom + theme.space.md }]}>
+      <ScreenHeader title="PDF ready" onBack={backToEdit} backLabel="Back to edit" />
+
       <View style={styles.successMark}>
         <Ionicons name="checkmark" size={37} color={theme.isDark ? "#07150E" : "#FFFFFF"} />
       </View>
@@ -99,44 +110,31 @@ export default function SuccessScreen() {
 
       <View style={styles.fileSummary}>
         <Pressable
-          onPress={() => void saveToFiles()}
+          onPress={() => void open()}
           accessibilityRole="button"
-          accessibilityLabel="Save a copy in Files"
-          style={({ pressed }) => [styles.fileIcon, pressed && styles.pressed]}
+          accessibilityLabel={`Open ${name}`}
+          style={({ pressed }) => [styles.fileMain, pressed && styles.pressed]}
         >
-          <Ionicons name="document-text-outline" size={25} color={theme.accentBright} />
-          <View style={styles.filesBadge}><Ionicons name="folder-outline" size={10} color="#FFFFFF" /></View>
+          <View style={styles.fileIcon}>
+            <Ionicons name="document-text-outline" size={25} color={theme.accentBright} />
+          </View>
+          <View style={styles.fileMeta}>
+            <Text style={styles.name} numberOfLines={2}>{name}</Text>
+            <Text style={styles.details}>
+              {pageCount} {pageCount === 1 ? "page" : "pages"} · {formatFileSize(sizeBytes)}
+            </Text>
+          </View>
         </Pressable>
-        <View style={styles.fileMeta}>
-          <Text style={styles.name} numberOfLines={2}>{name}</Text>
-          <Text style={styles.details}>{pageCount} {pageCount === 1 ? "page" : "pages"} · {formatFileSize(sizeBytes)}</Text>
-        </View>
         <Pressable
           onPress={() => setRenameVisible(true)}
           accessibilityRole="button"
           accessibilityLabel="Rename PDF"
+          hitSlop={8}
           style={({ pressed }) => [styles.editButton, pressed && styles.pressed]}
         >
-          <Ionicons name="pencil-outline" size={18} color={theme.accentBright} />
+          <Ionicons name="create-outline" size={22} color={theme.accentBright} />
         </Pressable>
       </View>
-
-      <Pressable
-        onPress={() => void saveToFiles()}
-        accessibilityRole="button"
-        accessibilityLabel="Choose a visible folder in Files"
-        style={({ pressed }) => [styles.locationRow, pressed && styles.pressed]}
-      >
-        <Ionicons name="folder-open-outline" size={20} color={theme.textTertiary} />
-        <View style={styles.locationCopy}>
-          <Text style={styles.locationLabel}>App storage</Text>
-          <Text style={styles.path} selectable numberOfLines={2}>{displayPath}</Text>
-        </View>
-        <View style={styles.filesAction}>
-          <Text style={styles.filesActionText}>Files</Text>
-          <Ionicons name="chevron-forward" size={16} color={theme.accentBright} />
-        </View>
-      </Pressable>
 
       <View style={styles.actions}>
         <PrimaryButton
@@ -149,17 +147,16 @@ export default function SuccessScreen() {
           onPress={() => void open()}
           icon={<Ionicons name="open-outline" size={20} color={theme.text} />}
         />
-        <Pressable
-          onPress={() => {
-            clearSession();
-            router.replace("/");
-          }}
-          accessibilityRole="button"
-          style={({ pressed }) => [styles.createAnother, pressed && styles.pressed]}
-        >
-          <Ionicons name="add" size={18} color={theme.textSecondary} />
-          <Text style={styles.createAnotherText}>Create another</Text>
-        </Pressable>
+        <SecondaryButton
+          label="Save as"
+          onPress={() => void saveAs()}
+          icon={<Ionicons name="save-outline" size={20} color={theme.text} />}
+        />
+        <SecondaryButton
+          label="Create another"
+          onPress={createAnother}
+          icon={<Ionicons name="add" size={20} color={theme.text} />}
+        />
       </View>
 
       <View style={styles.noWatermark}>
@@ -205,27 +202,62 @@ export default function SuccessScreen() {
 
 function createStyles(theme: AppTheme) {
   return StyleSheet.create({
-    screen: { flex: 1, backgroundColor: theme.bg, paddingHorizontal: theme.space.lg },
-    successMark: { width: 70, height: 70, borderRadius: 35, alignSelf: "center", alignItems: "center", justifyContent: "center", backgroundColor: theme.success, shadowColor: theme.success, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 18, elevation: 5 },
-    heading: { alignItems: "center", marginTop: theme.space.md, marginBottom: theme.space.lg, gap: 5 },
+    screen: { flex: 1, backgroundColor: theme.bg, paddingHorizontal: theme.space.lg, gap: theme.space.sm },
+    successMark: {
+      width: 70,
+      height: 70,
+      borderRadius: 35,
+      alignSelf: "center",
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.success,
+      marginTop: theme.space.sm,
+      shadowColor: theme.success,
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.2,
+      shadowRadius: 18,
+      elevation: 5,
+    },
+    heading: { alignItems: "center", marginBottom: theme.space.md, gap: 5 },
     title: { ...theme.type.hero, color: theme.text, fontSize: 25, textAlign: "center" },
     subtitle: { color: theme.textSecondary, fontSize: 13 },
-    fileSummary: { minHeight: 84, flexDirection: "row", alignItems: "center", gap: theme.space.md, padding: theme.space.md, borderRadius: theme.radius.lg, backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border },
-    fileIcon: { width: 50, height: 56, borderRadius: theme.radius.md, backgroundColor: theme.accentMuted, alignItems: "center", justifyContent: "center" },
-    filesBadge: { position: "absolute", right: -3, bottom: -3, width: 20, height: 20, borderRadius: 7, backgroundColor: theme.accent, borderWidth: 2, borderColor: theme.surface, alignItems: "center", justifyContent: "center" },
+    fileSummary: {
+      minHeight: 84,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: theme.space.sm,
+      padding: theme.space.md,
+      borderRadius: theme.radius.lg,
+      backgroundColor: theme.surface,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    fileMain: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: theme.space.md,
+    },
+    fileIcon: {
+      width: 50,
+      height: 56,
+      borderRadius: theme.radius.md,
+      backgroundColor: theme.accentMuted,
+      alignItems: "center",
+      justifyContent: "center",
+    },
     fileMeta: { flex: 1, gap: 5 },
     name: { color: theme.text, fontSize: 14, fontWeight: "700", lineHeight: 19 },
     details: { color: theme.textTertiary, fontSize: 11 },
-    editButton: { width: 42, height: 42, alignItems: "center", justifyContent: "center", borderRadius: theme.radius.md, backgroundColor: theme.accentMuted },
-    locationRow: { minHeight: 70, flexDirection: "row", alignItems: "center", gap: 10, borderBottomWidth: 1, borderBottomColor: theme.border },
-    locationCopy: { flex: 1, gap: 3 },
-    locationLabel: { color: theme.textTertiary, fontSize: 10 },
-    path: { color: theme.textSecondary, fontSize: 11, lineHeight: 16 },
-    filesAction: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 2, paddingLeft: theme.space.sm },
-    filesActionText: { color: theme.accentBright, fontSize: 12, fontWeight: "700" },
+    editButton: {
+      width: 44,
+      height: 44,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: theme.radius.md,
+      backgroundColor: theme.accentMuted,
+    },
     actions: { marginTop: "auto", gap: 9 },
-    createAnother: { minHeight: 42, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
-    createAnotherText: { color: theme.textSecondary, fontSize: 13, fontWeight: "600" },
     noWatermark: { minHeight: 38, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
     noWatermarkText: { color: theme.success, fontSize: 11, fontWeight: "600" },
     modalBackdrop: { flex: 1, justifyContent: "center", padding: theme.space.lg, backgroundColor: "rgba(0,0,0,0.55)" },

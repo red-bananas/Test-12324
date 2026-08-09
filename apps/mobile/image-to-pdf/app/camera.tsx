@@ -1,9 +1,9 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
-  Alert,
   BackHandler,
   Image,
   Linking,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -16,7 +16,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFeedback } from "../components/Feedback";
 import { PrimaryButton } from "../components/ui";
+import { cropCaptureToPreviewFrame } from "../lib/cameraCapture";
 import { canAddPage, createPageId } from "../lib/pages";
 import { getSessionPages, setSessionPages } from "../lib/session";
 import { triggerTapHaptic } from "../lib/haptics";
@@ -62,6 +64,27 @@ function PermissionScreen({
   );
 }
 
+function PreviewGrid() {
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        grid: { ...StyleSheet.absoluteFillObject },
+        lineV: { position: "absolute", top: 0, bottom: 0, width: 1, backgroundColor: "rgba(255,255,255,0.34)" },
+        lineH: { position: "absolute", left: 0, right: 0, height: 1, backgroundColor: "rgba(255,255,255,0.34)" },
+      }),
+    [],
+  );
+
+  return (
+    <View style={styles.grid} pointerEvents="none">
+      <View style={[styles.lineV, { left: "33.33%" }]} />
+      <View style={[styles.lineV, { left: "66.66%" }]} />
+      <View style={[styles.lineH, { top: "33.33%" }]} />
+      <View style={[styles.lineH, { top: "66.66%" }]} />
+    </View>
+  );
+}
+
 export default function CameraScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -69,55 +92,80 @@ export default function CameraScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [pages, setPages] = useState<PdfPage[]>(() => getSessionPages());
   const [flash, setFlash] = useState(false);
+  const [capturing, setCapturing] = useState(false);
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const { theme } = useAppTheme();
+  const { showMessage, confirm } = useFeedback();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   const close = useCallback(() => {
     if (pages.length > 0) {
-      Alert.alert("Discard captured pages?", "These pages have not been added to a PDF yet.", [
-        { text: "Keep scanning", style: "cancel" },
-        {
-          text: "Discard",
-          style: "destructive",
-          onPress: () => {
-            setSessionPages([]);
-            router.back();
-          },
+      confirm({
+        title: "Discard captured pages?",
+        message: "These pages have not been added to a PDF yet.",
+        confirmLabel: "Discard",
+        destructive: true,
+        onConfirm: () => {
+          setSessionPages([]);
+          router.back();
         },
-      ]);
+      });
       return;
     }
     router.back();
-  }, [pages.length, router]);
+  }, [confirm, pages.length, router]);
 
   useFocusEffect(
     useCallback(() => {
       const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+        if (previewIndex !== null) {
+          setPreviewIndex(null);
+          return true;
+        }
         close();
         return true;
       });
       return () => subscription.remove();
-    }, [close]),
+    }, [close, previewIndex]),
   );
 
   const capture = async () => {
-    if (!canAddPage(pages.length)) {
-      Alert.alert("Page limit reached", "Maximum 500 pages per document.");
+    if (capturing || !canAddPage(pages.length)) {
+      if (!canAddPage(pages.length)) {
+        showMessage("Page limit reached", "Maximum 500 pages per document.");
+      }
       return;
     }
     await triggerTapHaptic();
-    const photo = await cameraRef.current?.takePictureAsync({ quality: 0.92, skipProcessing: false });
-    if (!photo?.uri) return;
-    setPages((current) => [
-      ...current,
-      {
-        id: createPageId(),
+    setCapturing(true);
+    try {
+      const photo = await cameraRef.current?.takePictureAsync({ quality: 0.92, skipProcessing: false });
+      if (!photo?.uri) return;
+      const framed = await cropCaptureToPreviewFrame({
         uri: photo.uri,
         width: photo.width ?? 0,
         height: photo.height ?? 0,
-        rotation: 0,
-      },
-    ]);
+      });
+      setPages((current) => [
+        ...current,
+        {
+          id: createPageId(),
+          uri: framed.uri,
+          width: framed.width,
+          height: framed.height,
+          rotation: 0,
+        },
+      ]);
+    } finally {
+      setCapturing(false);
+    }
+  };
+
+  const deletePreviewPage = () => {
+    if (previewIndex === null) return;
+    const index = previewIndex;
+    setPages((current) => current.filter((_, i) => i !== index));
+    setPreviewIndex(null);
   };
 
   const finish = () => {
@@ -149,12 +197,14 @@ export default function CameraScreen() {
     );
   }
 
+  const previewPage = previewIndex === null ? null : pages[previewIndex];
+
   return (
     <View style={styles.screen}>
       <StatusBar style="light" />
-      <CameraView ref={cameraRef} style={styles.camera} facing="back" enableTorch={flash} />
-      <View style={styles.cameraOverlay} pointerEvents="box-none">
-        <View style={[styles.topBar, { paddingTop: insets.top + theme.space.sm }]}>
+
+      <View style={[styles.previewRegion, { paddingTop: insets.top + theme.space.sm }]}>
+        <View style={styles.topBar}>
           <Pressable onPress={close} accessibilityRole="button" accessibilityLabel="Close camera" style={styles.roundButton}>
             <Ionicons name="close" size={23} color="#FFFFFF" />
           </Pressable>
@@ -173,62 +223,127 @@ export default function CameraScreen() {
           </Pressable>
         </View>
 
-        <View style={styles.guide} pointerEvents="none">
-          <View style={[styles.corner, styles.topLeft]} />
-          <View style={[styles.corner, styles.topRight]} />
-          <View style={[styles.corner, styles.bottomLeft]} />
-          <View style={[styles.corner, styles.bottomRight]} />
-        </View>
-        <View style={styles.hintPill}><Text style={styles.hint}>Align the page inside the frame</Text></View>
-
-        <View style={[styles.bottomBar, { paddingBottom: insets.bottom + theme.space.md }]}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.thumbs}>
-            {pages.length === 0 ? (
-              <View style={styles.emptyThumb}><Text style={styles.emptyThumbText}>Captured pages appear here</Text></View>
-            ) : (
-              pages.map((page, index) => (
-                <View key={page.id} style={[styles.thumb, index === pages.length - 1 && styles.thumbCurrent]}>
-                  <Image source={{ uri: page.uri }} style={styles.thumbImage} />
-                  <View style={styles.thumbBadge}><Text style={styles.thumbLabel}>{index + 1}</Text></View>
-                </View>
-              ))
-            )}
-          </ScrollView>
-          <View style={styles.controls}>
-            <View style={styles.sideSlot} />
-            <Pressable
-              onPress={() => void capture()}
-              accessibilityRole="button"
-              accessibilityLabel="Capture page"
-              style={({ pressed }) => [styles.shutter, pressed && styles.shutterPressed]}
-            >
-              <View style={styles.shutterInner} />
-            </Pressable>
-            <View style={styles.sideSlot}>
-              {pages.length > 0 ? (
-                <Pressable
-                  onPress={finish}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Done, ${pages.length} ${pages.length === 1 ? "page" : "pages"}`}
-                  style={({ pressed }) => [styles.doneButton, pressed && styles.pressed]}
-                >
-                  <Text style={styles.doneText}>Done</Text>
-                  <View style={styles.doneCount}><Text style={styles.doneCountText}>{pages.length}</Text></View>
-                </Pressable>
-              ) : null}
-            </View>
+        <View style={styles.cameraStage}>
+          <View style={styles.cameraViewport}>
+            <CameraView ref={cameraRef} style={styles.camera} facing="back" enableTorch={flash} />
+            <PreviewGrid />
           </View>
         </View>
       </View>
+
+      <View style={[styles.bottomPanel, { paddingBottom: insets.bottom + theme.space.md }]}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.thumbScroll}
+          contentContainerStyle={styles.thumbs}
+        >
+          {pages.length === 0 ? (
+            <View style={styles.emptyThumb}>
+              <Text style={styles.emptyThumbText}>Captured pages appear here</Text>
+            </View>
+          ) : (
+            pages.map((page, index) => (
+              <Pressable
+                key={page.id}
+                onPress={() => setPreviewIndex(index)}
+                accessibilityRole="button"
+                accessibilityLabel={`Preview page ${index + 1}`}
+                style={[styles.thumb, index === pages.length - 1 && styles.thumbCurrent]}
+              >
+                <Image source={{ uri: page.uri }} style={styles.thumbImage} />
+                <View style={styles.thumbBadge}>
+                  <Text style={styles.thumbLabel}>{index + 1}</Text>
+                </View>
+              </Pressable>
+            ))
+          )}
+        </ScrollView>
+
+        <View style={styles.controls}>
+          <View style={styles.sideSlot} />
+          <Pressable
+            onPress={() => void capture()}
+            disabled={capturing}
+            accessibilityRole="button"
+            accessibilityLabel="Capture page"
+            style={({ pressed }) => [styles.shutter, pressed && styles.shutterPressed, capturing && styles.shutterDisabled]}
+          >
+            <View style={styles.shutterInner} />
+          </Pressable>
+          <View style={styles.sideSlot}>
+            {pages.length > 0 ? (
+              <Pressable
+                onPress={finish}
+                accessibilityRole="button"
+                accessibilityLabel={`Done, ${pages.length} ${pages.length === 1 ? "page" : "pages"}`}
+                style={({ pressed }) => [styles.doneButton, pressed && styles.pressed]}
+              >
+                <Text style={styles.doneText}>Done</Text>
+                <View style={styles.doneCount}>
+                  <Text style={styles.doneCountText}>{pages.length}</Text>
+                </View>
+              </Pressable>
+            ) : null}
+          </View>
+        </View>
+      </View>
+
+      <Modal visible={previewPage !== null} transparent animationType="fade" onRequestClose={() => setPreviewIndex(null)}>
+        <View style={styles.previewModal}>
+          <Pressable style={styles.previewDismiss} onPress={() => setPreviewIndex(null)} accessibilityLabel="Close preview" />
+          <View style={styles.previewCard}>
+            <View style={styles.previewHeader}>
+              <Text style={styles.previewTitle}>
+                Page {previewIndex !== null ? previewIndex + 1 : ""}
+              </Text>
+              <Pressable
+                onPress={() => setPreviewIndex(null)}
+                accessibilityRole="button"
+                accessibilityLabel="Close preview"
+                style={({ pressed }) => [styles.previewClose, pressed && styles.pressed]}
+              >
+                <Ionicons name="close" size={22} color="#FFFFFF" />
+              </Pressable>
+            </View>
+            {previewPage ? (
+              <Image source={{ uri: previewPage.uri }} style={styles.previewImage} resizeMode="contain" />
+            ) : null}
+            <Pressable
+              onPress={deletePreviewPage}
+              accessibilityRole="button"
+              accessibilityLabel="Delete captured page"
+              style={({ pressed }) => [styles.deleteButton, pressed && styles.pressed]}
+            >
+              <Ionicons name="trash-outline" size={18} color="#FFFFFF" />
+              <Text style={styles.deleteText}>Delete page</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 function createStyles(theme: AppTheme) {
   return StyleSheet.create({
-    screen: { flex: 1, backgroundColor: "#000000" },
-    camera: { flex: 1 },
-    cameraOverlay: { ...StyleSheet.absoluteFillObject },
+    screen: { flex: 1, backgroundColor: "#050608" },
+    previewRegion: { flex: 1, paddingHorizontal: theme.space.md, gap: theme.space.sm },
+    cameraStage: {
+      flex: 1,
+      width: "100%",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    cameraViewport: {
+      height: "100%",
+      aspectRatio: 3 / 4,
+      maxWidth: "100%",
+      borderRadius: theme.radius.lg,
+      overflow: "hidden",
+      backgroundColor: "#000000",
+    },
+    camera: { ...StyleSheet.absoluteFillObject },
     permissionScreen: {
       flex: 1,
       backgroundColor: theme.bg,
@@ -253,7 +368,7 @@ function createStyles(theme: AppTheme) {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
-      paddingHorizontal: theme.space.md,
+      minHeight: 48,
     },
     roundButton: {
       width: 44,
@@ -278,36 +393,18 @@ function createStyles(theme: AppTheme) {
       borderRadius: theme.radius.full,
     },
     pagePillText: { color: "#FFFFFF", fontWeight: "700", fontSize: 12 },
-    guide: { position: "absolute", top: "19%", left: "13%", right: "13%", bottom: "28%" },
-    corner: { position: "absolute", width: 34, height: 34, borderColor: "#A9A2FF" },
-    topLeft: { top: 0, left: 0, borderTopWidth: 3, borderLeftWidth: 3, borderTopLeftRadius: 10 },
-    topRight: { top: 0, right: 0, borderTopWidth: 3, borderRightWidth: 3, borderTopRightRadius: 10 },
-    bottomLeft: { bottom: 0, left: 0, borderBottomWidth: 3, borderLeftWidth: 3, borderBottomLeftRadius: 10 },
-    bottomRight: { bottom: 0, right: 0, borderBottomWidth: 3, borderRightWidth: 3, borderBottomRightRadius: 10 },
-    hintPill: { position: "absolute", top: "68%", left: 0, right: 0, alignItems: "center" },
-    hint: {
-      color: "rgba(255,255,255,0.9)",
-      fontSize: 12,
-      fontWeight: "600",
-      backgroundColor: theme.cameraChrome,
-      paddingHorizontal: 13,
-      paddingVertical: 7,
-      borderRadius: theme.radius.full,
-      overflow: "hidden",
-    },
-    bottomBar: {
-      position: "absolute",
-      left: 0,
-      right: 0,
-      bottom: 0,
+    bottomPanel: {
       gap: theme.space.md,
       paddingHorizontal: theme.space.md,
-      paddingTop: theme.space.lg,
-      backgroundColor: "rgba(5,6,8,0.82)",
+      paddingTop: theme.space.sm,
+      backgroundColor: "rgba(5,6,8,0.96)",
     },
-    thumbs: { minHeight: 58, alignItems: "center", gap: theme.space.sm, paddingHorizontal: 2 },
+    thumbScroll: { maxHeight: 72 },
+    thumbs: { flexGrow: 1, minHeight: 58, alignItems: "center", gap: theme.space.sm },
     emptyThumb: {
-      minHeight: 50,
+      flex: 1,
+      width: "100%",
+      minHeight: 58,
       paddingHorizontal: theme.space.md,
       borderRadius: theme.radius.md,
       borderWidth: 1,
@@ -316,10 +413,10 @@ function createStyles(theme: AppTheme) {
       alignItems: "center",
       justifyContent: "center",
     },
-    emptyThumbText: { color: "rgba(255,255,255,0.6)", fontSize: 11 },
+    emptyThumbText: { color: "rgba(255,255,255,0.62)", fontSize: 12, textAlign: "center" },
     thumb: {
-      width: 44,
-      height: 56,
+      width: 48,
+      height: 60,
       borderRadius: 8,
       overflow: "hidden",
       borderWidth: 2,
@@ -331,8 +428,8 @@ function createStyles(theme: AppTheme) {
       position: "absolute",
       bottom: 3,
       right: 3,
-      width: 15,
-      height: 15,
+      width: 16,
+      height: 16,
       borderRadius: 8,
       backgroundColor: "rgba(8,9,12,0.78)",
       alignItems: "center",
@@ -352,6 +449,7 @@ function createStyles(theme: AppTheme) {
     },
     shutterInner: { width: 62, height: 62, borderRadius: 31, backgroundColor: "#FFFFFF" },
     shutterPressed: { transform: [{ scale: 0.94 }] },
+    shutterDisabled: { opacity: 0.55 },
     doneButton: {
       minHeight: 44,
       flexDirection: "row",
@@ -362,8 +460,42 @@ function createStyles(theme: AppTheme) {
       backgroundColor: theme.accent,
     },
     doneText: { color: "#FFFFFF", fontWeight: "700", fontSize: 13 },
-    doneCount: { minWidth: 20, height: 20, borderRadius: 10, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },
+    doneCount: {
+      minWidth: 20,
+      height: 20,
+      borderRadius: 10,
+      backgroundColor: "rgba(255,255,255,0.18)",
+      alignItems: "center",
+      justifyContent: "center",
+    },
     doneCountText: { color: "#FFFFFF", fontSize: 10, fontWeight: "800" },
+    previewModal: { flex: 1, justifyContent: "center", padding: theme.space.lg, backgroundColor: "rgba(0,0,0,0.72)" },
+    previewDismiss: { ...StyleSheet.absoluteFillObject },
+    previewCard: {
+      borderRadius: theme.radius.xl,
+      overflow: "hidden",
+      backgroundColor: "#10131A",
+      borderWidth: 1,
+      borderColor: "rgba(255,255,255,0.12)",
+      gap: theme.space.md,
+      padding: theme.space.md,
+    },
+    previewHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+    previewTitle: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
+    previewClose: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
+    previewImage: { width: "100%", aspectRatio: 3 / 4, borderRadius: theme.radius.md, backgroundColor: "#000000" },
+    deleteButton: {
+      minHeight: 48,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      borderRadius: theme.radius.md,
+      backgroundColor: "rgba(239,68,68,0.18)",
+      borderWidth: 1,
+      borderColor: "rgba(239,68,68,0.42)",
+    },
+    deleteText: { color: "#FFFFFF", fontSize: 14, fontWeight: "700" },
     pressed: { opacity: 0.7 },
   });
 }

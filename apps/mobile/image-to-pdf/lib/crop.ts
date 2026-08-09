@@ -1,3 +1,6 @@
+import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
+import type { PdfPage } from "./types";
+
 export type CropRect = {
   x: number;
   y: number;
@@ -6,6 +9,8 @@ export type CropRect = {
 };
 
 export type CropCorner = "topLeft" | "topRight" | "bottomLeft" | "bottomRight";
+export type CropEdge = "top" | "right" | "bottom" | "left";
+export type CropHandle = CropCorner | CropEdge | "move";
 
 export const FULL_CROP: CropRect = { x: 0, y: 0, width: 1, height: 1 };
 const MIN_CROP_SIZE = 0.12;
@@ -14,26 +19,39 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
+export function moveCrop(start: CropRect, deltaX: number, deltaY: number): CropRect {
+  return {
+    ...start,
+    x: clamp(start.x + deltaX, 0, 1 - start.width),
+    y: clamp(start.y + deltaY, 0, 1 - start.height),
+  };
+}
+
 export function resizeCrop(
   start: CropRect,
-  corner: CropCorner,
+  handle: CropHandle,
   deltaX: number,
   deltaY: number,
 ): CropRect {
+  if (handle === "move") {
+    return moveCrop(start, deltaX, deltaY);
+  }
+
   let left = start.x;
   let top = start.y;
   let right = start.x + start.width;
   let bottom = start.y + start.height;
 
-  if (corner === "topLeft" || corner === "bottomLeft") {
+  if (handle === "topLeft" || handle === "bottomLeft" || handle === "left") {
     left = clamp(left + deltaX, 0, right - MIN_CROP_SIZE);
-  } else {
+  }
+  if (handle === "topRight" || handle === "bottomRight" || handle === "right") {
     right = clamp(right + deltaX, left + MIN_CROP_SIZE, 1);
   }
-
-  if (corner === "topLeft" || corner === "topRight") {
+  if (handle === "topLeft" || handle === "topRight" || handle === "top") {
     top = clamp(top + deltaY, 0, bottom - MIN_CROP_SIZE);
-  } else {
+  }
+  if (handle === "bottomLeft" || handle === "bottomRight" || handle === "bottom") {
     bottom = clamp(bottom + deltaY, top + MIN_CROP_SIZE, 1);
   }
 
@@ -56,6 +74,35 @@ export function isFullCrop(rect: CropRect): boolean {
     Math.abs(rect.width - 1) < epsilon &&
     Math.abs(rect.height - 1) < epsilon
   );
+}
+
+export function cropRectFromPage(page: PdfPage): CropRect {
+  if (!page.crop) return FULL_CROP;
+  return rotateCrop(page.crop, page.rotation);
+}
+
+export async function applyRectCrop(
+  sourceUri: string,
+  imageWidth: number,
+  imageHeight: number,
+  rect: CropRect,
+): Promise<{ uri: string; width: number; height: number }> {
+  if (isFullCrop(rect)) {
+    return { uri: sourceUri, width: imageWidth, height: imageHeight };
+  }
+
+  const { originX, originY, width, height } = cropRectToPixels(rect, imageWidth, imageHeight);
+  const result = await manipulateAsync(
+    sourceUri,
+    [{ crop: { originX, originY, width, height } }],
+    { compress: 0.92, format: SaveFormat.JPEG },
+  );
+
+  return {
+    uri: result.uri,
+    width: result.width ?? width,
+    height: result.height ?? height,
+  };
 }
 
 export function rotateCrop(rect: CropRect, rotation: 0 | 90 | 180 | 270): CropRect {

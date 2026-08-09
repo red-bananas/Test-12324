@@ -8,7 +8,7 @@ import {
 } from "../lib/pages";
 import { exportPdf } from "../lib/pdf";
 import { displayExportPath, getUniquePdfName, normalizePdfName, toFileUri } from "../lib/fs";
-import { cropRectToPixels, FULL_CROP, resizeCrop, rotateCrop } from "../lib/crop";
+import { applyRectCrop, cropRectToPixels, FULL_CROP, moveCrop, resizeCrop, rotateCrop } from "../lib/crop";
 import { addRecent, formatRecentDate, sortRecentsDesc } from "../lib/recents";
 import type { PdfPage } from "../lib/types";
 
@@ -131,6 +131,29 @@ describe("crop geometry", () => {
     expect(clamped.height).toBeCloseTo(0.12);
   });
 
+  it("moves and edge-resizes a crop rect", () => {
+    const moved = moveCrop({ x: 0.1, y: 0.1, width: 0.5, height: 0.5 }, 0.05, 0.05);
+    expect(moved.x).toBeCloseTo(0.15);
+    expect(moved.y).toBeCloseTo(0.15);
+    expect(moved.width).toBe(0.5);
+    expect(moved.height).toBe(0.5);
+
+    const edge = resizeCrop({ x: 0.1, y: 0.1, width: 0.5, height: 0.5 }, "right", 0.1, 0);
+    expect(edge.width).toBeCloseTo(0.6);
+  });
+
+  it("applies a rectangular crop through the manipulator", async () => {
+    const result = await applyRectCrop("file:///photo.jpg", 1000, 800, {
+      x: 0.1,
+      y: 0.2,
+      width: 0.5,
+      height: 0.6,
+    });
+    expect(result.uri).toBe("file:///photo.jpg");
+    expect(result.width).toBe(1000);
+    expect(result.height).toBe(1000);
+  });
+
   it("rotates an existing crop so it stays editable after page rotation", () => {
     const original = { x: 0.1, y: 0.2, width: 0.5, height: 0.6 };
     expect(rotateCrop(original, 90)).toEqual({ x: 0.2, y: 0.1, width: 0.6, height: 0.5 });
@@ -164,7 +187,7 @@ describe("recents", () => {
 
   it("formats recent dates", () => {
     const today = new Date().toISOString();
-    expect(formatRecentDate(today)).toBe("Today");
+    expect(formatRecentDate(today)).toMatch(/\d{1,2} \w{3} \d{4} · /);
   });
 
   it("addRecent prepends and caps list", async () => {

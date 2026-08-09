@@ -1,7 +1,6 @@
 import { MutableRefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Image,
   PanResponder,
   Pressable,
@@ -23,6 +22,7 @@ import {
   resizeCrop,
   rotateCrop,
 } from "../lib/crop";
+import { useFeedback } from "../components/Feedback";
 import { triggerTapHaptic } from "../lib/haptics";
 import { getSessionPages, setSessionPages } from "../lib/session";
 import { AppTheme, useAppTheme } from "../lib/theme";
@@ -120,6 +120,7 @@ export default function CropScreen() {
   const [selectedIndex, setSelectedIndex] = useState(initialIndex);
   const page = pages[selectedIndex];
   const { theme } = useAppTheme();
+  const { showMessage } = useFeedback();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [stage, setStage] = useState({ width: 0, height: 0 });
   const [working, setWorking] = useState<WorkingImage | null>(null);
@@ -149,12 +150,12 @@ export default function CropScreen() {
         if (active) setWorking(result);
       })
       .catch(() => {
-        if (active) Alert.alert("Couldn't prepare this page", "Choose another page or go back and try again.");
+        if (active) showMessage("Couldn't prepare this page", "Choose another page or go back and try again.");
       });
     return () => {
       active = false;
     };
-  }, [page]);
+  }, [page, showMessage]);
 
   const setCrop = useCallback((value: CropRect) => {
     if (!page) return;
@@ -244,7 +245,7 @@ export default function CropScreen() {
       setSessionPages(next);
       router.back();
     } catch {
-      Alert.alert("Couldn't apply these crops", "Reset the crop area on the affected page and try again.");
+      showMessage("Couldn't apply these crops", "Reset the crop area on the affected page and try again.");
     } finally {
       setSaving(false);
     }
