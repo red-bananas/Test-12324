@@ -145,8 +145,8 @@ export default function SettingsScreen() {
                 <Switch
                   value={settings.saveExportsAutomatically ?? false}
                   onValueChange={(value) => void update({ saveExportsAutomatically: value })}
-                  trackColor={{ false: theme.borderStrong, true: theme.accent }}
-                  thumbColor={theme.accentText}
+                  trackColor={{ false: theme.borderStrong, true: theme.accentMuted }}
+                  thumbColor={theme.accent}
                   accessibilityLabel="Save exports automatically"
                 />
               </View>

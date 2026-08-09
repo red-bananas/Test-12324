@@ -84,7 +84,7 @@ export function OptionPill({
       {sublabel ? <Text style={styles.optionSublabel}>{sublabel}</Text> : null}
       {selected ? (
         <View style={styles.optionCheck}>
-          <Ionicons name="checkmark" size={12} color={theme.accentText} />
+          <Ionicons name="checkmark" size={12} color={theme.accentBright} />
         </View>
       ) : null}
     </Pressable>
@@ -254,18 +254,21 @@ function createStyles(theme: AppTheme) {
       width: 18,
       height: 18,
       borderRadius: 9,
-      backgroundColor: theme.accent,
+      borderWidth: 1.5,
+      borderColor: theme.accent,
+      backgroundColor: theme.accentMuted,
       alignItems: "center",
       justifyContent: "center",
     },
     primary: {
-      backgroundColor: theme.accent,
+      backgroundColor: theme.surface,
       borderRadius: theme.radius.lg,
+      borderWidth: 1.5,
+      borderColor: theme.accent,
       minHeight: 56,
       alignItems: "center",
       justifyContent: "center",
       paddingHorizontal: theme.space.lg,
-      ...theme.shadow.accent,
     },
     primaryPressed: { opacity: 0.92, transform: [{ scale: 0.985 }] },
     secondary: {

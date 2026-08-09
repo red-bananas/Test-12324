@@ -78,11 +78,39 @@ export async function shareFile(uri: string): Promise<void> {
   const Sharing = await loadSharing();
   const available = await Sharing.isAvailableAsync();
   if (!available) throw new Error("Sharing is not available on this device.");
-  await Sharing.shareAsync(toFileUri(uri), {
-    mimeType: "application/pdf",
-    dialogTitle: "Share PDF",
-    UTI: "com.adobe.pdf",
-  });
+
+  const fileUri = toFileUri(uri);
+  const FS = await import("expo-file-system/legacy");
+  const info = await FS.getInfoAsync(fileUri);
+  if (!info.exists) {
+    throw new Error("PDF file is missing.");
+  }
+
+  try {
+    await Sharing.shareAsync(fileUri, {
+      mimeType: "application/pdf",
+      dialogTitle: "Share PDF",
+      UTI: "com.adobe.pdf",
+    });
+  } catch (error) {
+    if (isBenignShareError(error)) return;
+    throw error;
+  }
+}
+
+/** Android share sheet often rejects after a successful handoff or user dismiss. */
+export function isBenignShareError(error: unknown): boolean {
+  const message = (error instanceof Error ? error.message : String(error ?? "")).toLowerCase();
+  if (!message) return true;
+  return (
+    message.includes("cancel") ||
+    message.includes("dismiss") ||
+    message.includes("did not share") ||
+    message.includes("user denied") ||
+    message.includes("abort") ||
+    message.includes("closed") ||
+    message.includes("result code 0")
+  );
 }
 
 export async function openFile(uri: string): Promise<void> {

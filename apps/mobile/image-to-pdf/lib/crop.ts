@@ -71,6 +71,10 @@ export function cropRectToPixels(rect: CropRect, imageWidth: number, imageHeight
   };
 }
 
+export function hasBakedCrop(page: PdfPage): boolean {
+  return !page.crop && !!page.originalUri && page.uri !== page.originalUri;
+}
+
 export function isFullCrop(rect: CropRect): boolean {
   const epsilon = 0.001;
   return (

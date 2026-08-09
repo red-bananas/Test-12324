@@ -1,62 +1,80 @@
-# Agent instructions — Mobile (Expo + Skia) game clone
+# Agent instructions — Mobile (Expo) Play Store app
 
-You are building a **single-player, offline casual game** in this Expo (React Native) + TypeScript project. Read `clone-spec.json` at the repo root for the target spec.
+Read [`docs/specs/{slug}.md`](../../../docs/specs/) — **must be human-approved** before coding. Orchestrator: [`.cursor/skills/mobile-dev-cycle/SKILL.md`](../../../.cursor/skills/mobile-dev-cycle/SKILL.md).
 
-## Hard rules (non-negotiable)
+## Archetype (`app.yaml`)
 
-1. **Single-player, offline only.** No multiplayer, no server, no auth, no IAP, no leaderboard backend. State persists via `expo-secure-store` or `AsyncStorage` if needed.
-2. **No brand copy.** Do NOT use the original game's name, character art descriptions, logo, brand colors, or marketing copy. Use `distinct_name` from the spec.
-3. **Don't change these files:**
-   - `package.json` scripts section
-   - `app.json` slug, name, package, bundleIdentifier
-   - `tests/smoke.test.tsx` (add more tests, but don't delete or weaken this one)
-4. **Tests must pass.** `npm test` (Jest + jest-expo) must exit 0.
+| `archetype` | Code layout |
+|-------------|-------------|
+| `game` | `game/state.ts` reducer + `components/` + gesture input |
+| `utility` | `lib/` + `features/` + screen flows (no `game/` loop) |
+
+Both use shared `game/monetization.ts` + `game/ads/` for AdMob (rename path to `lib/ads/` for utilities if you prefer — keep monetization config either way).
+
+## Hard rules
+
+1. **Spec approved** before implementation.
+2. **Dependency approval:** ask human before `npm install` any package **not** in this scaffold's `package.json`.
+3. **No brand copy** — distinct name, no competitor logos/colors.
+4. **Don't change:** `package.json` scripts, `tests/smoke.test.tsx`, `tests/game.test.ts` (add tests, don't weaken).
+5. **Tests must pass:** `npm run typecheck && npm run lint && npm test`.
+6. **AdMob:** test units only in dev; see `.cursor/rules/admob-testing.mdc`. Ads need USB dev build (`npm run android`), not Expo Go.
+7. **Scaffold assets are placeholders.** After copy to `apps/mobile/{slug}/`, maintain icons only in that app folder (`store/source/logo.png` → `assets/`). Never edit or reference `scaffolds/mobile-expo-game/assets/` for a shipped app.
+
+## Pre-approved dependencies (no ask)
+
+Already in `package.json`. You may also add without asking:
+
+- `zustand`, `clsx`, `expo-av`, `expo-image-picker`, `expo-file-system`, `expo-sharing`
+
+For **Skia** (`@shopify/react-native-skia`) — ask human first; run `npx expo install @shopify/react-native-skia`.
 
 ## Where to put things
 
-- Routes live in `app/`. Home screen is `app/index.tsx`. Add screens as `app/<screen>.tsx` and link via `expo-router`.
-- Game-loop logic goes in `game/` (create the folder). Keep the React tree thin and the game state in a single reducer or zustand store.
-- Reusable UI in `components/`.
-- Tests: `tests/*.test.tsx`, `@testing-library/react-native` + jest-expo preset.
+**All paths below are relative to `apps/mobile/{slug}/` for the app you are building.**
 
-## Game-loop pattern (important — read this carefully)
+| Path | Purpose |
+|------|---------|
+| `app/` | expo-router screens |
+| `game/` | Game archetype: state, logic, ads |
+| `lib/` | Utility archetype: pure logic |
+| `components/` | UI |
+| `tests/` | Jest |
+| `PLAY_STORE.md` | Listing copy |
+| `store/source/logo.png` | Canonical app icon source (human) — see `store-creatives` skill |
+| `store/source/` | Raw screenshots and other inputs |
+| `store/upload/` | Play Console finals (generated or human-designed) — **not** icon source |
+| `assets/icon.png` etc. | Generated icons — run `python tools/mobile/generate-mobile-icons.py {slug}` |
 
-For real-time games (Snake, Tetris-likes, endless runners), use **`useFrameCallback`** from `react-native-reanimated`:
+## Build approach (game)
 
-```tsx
-import { useFrameCallback } from "react-native-reanimated";
+1. Replace `app/index.tsx` with main screen.
+2. Core state in `game/state.ts` — test reducer in `tests/game.test.ts`.
+3. `react-native-gesture-handler` for input.
+4. `expo-haptics` on key moments.
+5. AsyncStorage for persistence.
+6. Wire ads via `game/rewards.ts` — Phase 1 grants free; Phase 2 shows rewarded.
 
-useFrameCallback((info) => {
-  // info.timeSincePreviousFrame_ms — use this to advance game state by dt
-}, true);
+## Build approach (utility)
+
+1. Replace `app/index.tsx` with main tool screen.
+2. Logic in `lib/` — unit test each module.
+3. Multi-step flow: `app/step-*.tsx` or single screen with sections.
+4. Ads: rewarded after job done (see `mobile-ads-strategy` skill).
+
+## Device testing
+
+```bash
+npm install --legacy-peer-deps
+npm run android   # USB + Android SDK — daily driver
 ```
 
-For turn-based games (2048, Sudoku, Memory, Tic-tac-toe), no frame loop is needed — render on state change.
+EAS preview before store: `npm run build:preview`
 
-For rendering, prefer **`@shopify/react-native-skia`** for canvas-based visuals (grid, sprites drawn with shapes). Use plain React Native `<View>` for menus and simple grids.
+See [`.cursor/skills/mobile-testing/SKILL.md`](../../../.cursor/skills/mobile-testing/SKILL.md).
 
-## Build approach
+## Ship
 
-1. Replace `app/index.tsx` with the main game screen.
-2. Add a route `app/menu.tsx` if the spec needs a menu/start screen.
-3. Put core game state (board, score, status) in `game/state.ts` as a pure reducer. Test the reducer directly with Jest — game logic tests are the most valuable kind.
-4. Use `react-native-gesture-handler` for swipe/tap input. Avoid `PanResponder` (it's older).
-5. Persist high score / progress in `AsyncStorage`.
-6. Add at least 2 game-logic tests beyond the smoke test (e.g., "tile merge produces correct score", "game-over triggers when board full").
+[`play-store-release`](../../../.cursor/skills/play-store-release/SKILL.md) + [`store-creatives`](../../../.cursor/skills/store-creatives/SKILL.md).
 
-## Allowed dependency additions
-
-You may add: `zustand`, `@react-native-async-storage/async-storage`, `expo-haptics`, `expo-av` (for sound effects — but generate your own audio, don't reference original game's audio), `clsx`.
-
-For anything else, write it yourself.
-
-## Visual identity
-
-Pick a palette and shape language clearly distinct from the original. Examples:
-- Original is bright/cartoon → use minimalist monochrome with one accent color.
-- Original is dark/neon → use warm pastels.
-- Never reuse the original sprite designs; build from primitives (rectangles, circles, gradients).
-
-## When stuck
-
-If a feature is too complex for one iteration, ship a working minimal version with a TODO comment. Keep `npm test` green at all times.
+Reference apps: `apps/mobile/tile-merge` (game), `apps/mobile/image-toolkit` (utility).

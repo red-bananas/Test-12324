@@ -9,7 +9,8 @@ import {
 import { exportPdf, estimatePdfSizeBytes, preparePageForExport } from "../lib/pdf";
 import { displayExportPath, getUniquePdfName, isTemporaryExportPath, normalizePdfName, toFileUri } from "../lib/fs";
 import { fitImageForExport, mapPaperSizeForNative, toPdfImageUri } from "../lib/exportImage";
-import { applyRectCrop, cropRectToPixels, FULL_CROP, moveCrop, resizeCrop, rotateCrop } from "../lib/crop";
+import { applyRectCrop, cropRectToPixels, FULL_CROP, isFullCrop, moveCrop, resizeCrop, rotateCrop } from "../lib/crop";
+import { isBenignShareError } from "../lib/share";
 import { addRecent, formatRecentDate, formatRecentMeta, sortRecentsDesc } from "../lib/recents";
 import type { PdfPage } from "../lib/types";
 
@@ -38,9 +39,17 @@ describe("pages", () => {
     expect(deletePage(pages, 0).map((p) => p.id)).toEqual(["b"]);
   });
 
-  it("rotates page 90 degrees", () => {
-    const rotated = rotatePage(page("a"));
-    expect(rotated.rotation).toBe(90);
+  it("rotates page continuously through 360 degrees", () => {
+    let current = page("a");
+    expect(current.rotation).toBe(0);
+    current = rotatePage(current);
+    expect(current.rotation).toBe(90);
+    current = rotatePage(current);
+    expect(current.rotation).toBe(180);
+    current = rotatePage(current);
+    expect(current.rotation).toBe(270);
+    current = rotatePage(current);
+    expect(current.rotation).toBe(0);
   });
 
   it("caps at 500 pages", () => {
@@ -229,6 +238,20 @@ describe("crop geometry", () => {
     expect(rotateCrop(original, 90)).toEqual({ x: 0.2, y: 0.1, width: 0.6, height: 0.5 });
     expect(rotateCrop(original, 180)).toEqual({ x: 0.4, y: 0.2, width: 0.5, height: 0.6 });
     expect(rotateCrop(original, 270)).toEqual({ x: 0.2, y: 0.4, width: 0.6, height: 0.5 });
+  });
+
+  it("keeps a stored crop rect separate from the baked preview uri", () => {
+    const crop = { x: 0.1, y: 0.2, width: 0.5, height: 0.6 };
+    expect(isFullCrop(crop)).toBe(false);
+    expect(isFullCrop(FULL_CROP)).toBe(true);
+  });
+});
+
+describe("share helpers", () => {
+  it("ignores benign share-sheet dismissals", () => {
+    expect(isBenignShareError(new Error("User canceled"))).toBe(true);
+    expect(isBenignShareError(new Error("Share dismissed"))).toBe(true);
+    expect(isBenignShareError(new Error("PDF file is missing."))).toBe(false);
   });
 });
 

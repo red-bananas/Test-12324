@@ -41,17 +41,7 @@ export function RecentList({ items, onPress, onMenuAction, style, contentContain
   };
 
   if (items.length === 0) {
-    return (
-      <View style={[styles.empty, style]}>
-        <View style={styles.emptyIcon}>
-          <Ionicons name="folder-open-outline" size={22} color={theme.textTertiary} />
-        </View>
-        <View style={styles.emptyCopy}>
-          <Text style={styles.emptyTitle}>No PDFs yet</Text>
-          <Text style={styles.emptyText}>Your exported PDFs appear here.</Text>
-        </View>
-      </View>
-    );
+    return null;
   }
 
   return (
@@ -140,24 +130,6 @@ export function RecentList({ items, onPress, onMenuAction, style, contentContain
 
 function createStyles(theme: AppTheme) {
   return StyleSheet.create({
-    empty: {
-      minHeight: 78,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: theme.space.md,
-      paddingVertical: theme.space.md,
-    },
-    emptyIcon: {
-      width: 44,
-      height: 44,
-      borderRadius: theme.radius.md,
-      backgroundColor: theme.bgElevated,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    emptyCopy: { flex: 1, gap: 3 },
-    emptyTitle: { ...theme.type.caption, color: theme.textSecondary, fontWeight: "700" },
-    emptyText: { color: theme.textTertiary, fontSize: 12 },
     separator: { height: 1, backgroundColor: theme.border },
     row: {
       minHeight: 64,

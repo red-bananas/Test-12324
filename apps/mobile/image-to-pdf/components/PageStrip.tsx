@@ -13,7 +13,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { AppTheme, useAppTheme } from "../lib/theme";
 import type { PdfPage } from "../lib/types";
 
-const THUMB_SPAN = 66;
+const THUMB_WIDTH = 58;
+const THUMB_GAP = 8;
+const SLOT_WIDTH = THUMB_WIDTH + THUMB_GAP;
+
+function clampIndex(value: number, max: number): number {
+  return Math.min(Math.max(0, value), max);
+}
 
 function DraggablePage({
   page,
@@ -22,6 +28,7 @@ function DraggablePage({
   selected,
   onSelect,
   onReorder,
+  onDragStateChange,
   styles,
 }: {
   page: PdfPage;
@@ -30,61 +37,53 @@ function DraggablePage({
   selected: boolean;
   onSelect: (index: number) => void;
   onReorder: (fromIndex: number, toIndex: number) => void;
+  onDragStateChange: (dragging: boolean) => void;
   styles: ReturnType<typeof createStyles>;
 }) {
   const dragX = useRef(new Animated.Value(0)).current;
   const draggingRef = useRef(false);
-  const liveIndexRef = useRef(index);
+  const startIndexRef = useRef(index);
   const [dragging, setDragging] = useState(false);
 
   useEffect(() => {
     if (!draggingRef.current) {
-      liveIndexRef.current = index;
+      startIndexRef.current = index;
     }
   }, [index]);
 
   const panResponder = useMemo(
     () =>
       PanResponder.create({
-        onMoveShouldSetPanResponder: (_, gesture) =>
-          draggingRef.current && Math.abs(gesture.dx) > 2,
+        onMoveShouldSetPanResponder: () => draggingRef.current,
+        onMoveShouldSetPanResponderCapture: () => draggingRef.current,
         onPanResponderGrant: () => {
-          liveIndexRef.current = index;
-          dragX.setOffset(0);
+          startIndexRef.current = index;
           dragX.setValue(0);
           onSelect(index);
         },
         onPanResponderMove: (_, gesture) => {
           dragX.setValue(gesture.dx);
-          const from = liveIndexRef.current;
-          let to = from;
-          if (gesture.dx > THUMB_SPAN * 0.45 && from < pageCount - 1) {
-            to = from + 1;
-          } else if (gesture.dx < -THUMB_SPAN * 0.45 && from > 0) {
-            to = from - 1;
-          }
-          if (to === from) return;
-
-          onReorder(from, to);
-          liveIndexRef.current = to;
-          const shift = (to - from) * THUMB_SPAN;
-          dragX.setOffset(gesture.dx - shift);
-          dragX.setValue(0);
         },
-        onPanResponderRelease: () => {
-          dragX.flattenOffset();
+        onPanResponderRelease: (_, gesture) => {
+          const start = startIndexRef.current;
+          const slotsMoved = Math.round(gesture.dx / SLOT_WIDTH);
+          const target = clampIndex(start + slotsMoved, pageCount - 1);
+          if (target !== start) {
+            onReorder(start, target);
+          }
           dragX.setValue(0);
           draggingRef.current = false;
           setDragging(false);
+          onDragStateChange(false);
         },
         onPanResponderTerminate: () => {
-          dragX.flattenOffset();
           dragX.setValue(0);
           draggingRef.current = false;
           setDragging(false);
+          onDragStateChange(false);
         },
       }),
-    [dragX, index, onReorder, onSelect, pageCount],
+    [dragX, index, onDragStateChange, onReorder, onSelect, pageCount],
   );
 
   return (
@@ -96,8 +95,9 @@ function DraggablePage({
         onPress={() => onSelect(index)}
         onLongPress={() => {
           draggingRef.current = true;
-          liveIndexRef.current = index;
+          startIndexRef.current = index;
           setDragging(true);
+          onDragStateChange(true);
           onSelect(index);
         }}
         delayLongPress={120}
@@ -143,9 +143,10 @@ export function PageStrip({
   const { theme } = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const scrollRef = useRef<ScrollView>(null);
+  const [stripDragging, setStripDragging] = useState(false);
 
   useEffect(() => {
-    const offset = Math.max(0, selectedIndex * THUMB_SPAN - 80);
+    const offset = Math.max(0, selectedIndex * SLOT_WIDTH - 80);
     scrollRef.current?.scrollTo({ x: offset, animated: true });
   }, [selectedIndex]);
 
@@ -168,6 +169,7 @@ export function PageStrip({
       <ScrollView
         ref={scrollRef}
         horizontal
+        scrollEnabled={!stripDragging}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.strip}
       >
@@ -180,6 +182,7 @@ export function PageStrip({
             selected={index === selectedIndex}
             onSelect={onSelect}
             onReorder={onReorder}
+            onDragStateChange={setStripDragging}
             styles={styles}
           />
         ))}
@@ -202,11 +205,11 @@ function createStyles(theme: AppTheme) {
     },
     addText: { color: theme.accentBright, fontSize: 12, fontWeight: "700" },
     addPressed: { opacity: 0.65 },
-    strip: { gap: theme.space.sm, paddingVertical: 5, paddingHorizontal: 2 },
+    strip: { gap: THUMB_GAP, paddingVertical: 5, paddingHorizontal: 2 },
     dragWrap: { zIndex: 1 },
     dragging: { zIndex: 10, elevation: 8, opacity: 0.94 },
     thumb: {
-      width: 58,
+      width: THUMB_WIDTH,
       height: 74,
       borderRadius: theme.radius.sm,
       overflow: "hidden",
@@ -228,9 +231,13 @@ function createStyles(theme: AppTheme) {
       alignItems: "center",
       justifyContent: "center",
     },
-    indexBadgeSelected: { backgroundColor: theme.accent },
+    indexBadgeSelected: {
+      backgroundColor: theme.accentMuted,
+      borderWidth: 1.5,
+      borderColor: theme.accent,
+    },
     index: { color: theme.textSecondary, fontSize: 9, fontWeight: "800" },
-    indexSelected: { color: theme.accentText },
+    indexSelected: { color: theme.accentBright },
     pressed: { opacity: 0.72 },
   });
 }

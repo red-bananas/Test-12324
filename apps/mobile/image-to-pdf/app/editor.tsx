@@ -64,6 +64,8 @@ export default function EditorScreen() {
     }, [e2e, leaveEditor]),
   );
 
+  const bootstrappedRef = useRef(false);
+
   useEffect(() => {
     if (e2e === "1") {
       const fixture: PdfPage[] = [
@@ -81,9 +83,12 @@ export default function EditorScreen() {
     }
     const initial = getSessionPages();
     if (initial.length === 0) {
-      router.replace("/");
+      if (!bootstrappedRef.current) {
+        router.replace("/");
+      }
       return;
     }
+    bootstrappedRef.current = true;
     setPages(initial);
   }, [router, e2e]);
 
@@ -99,6 +104,7 @@ export default function EditorScreen() {
   };
 
   const onCrop = async () => {
+    if (exporting) return;
     await triggerTapHaptic();
     router.push({ pathname: "/crop", params: { index: String(selectedIndex) } });
   };
@@ -265,7 +271,7 @@ export default function EditorScreen() {
           <Image
             key={current.uri}
             source={{ uri: current.uri }}
-            style={[styles.preview, current.rotation % 180 === 90 && styles.previewRotated]}
+            style={[styles.preview, { transform: [{ rotate: `${current.rotation}deg` }] }]}
             resizeMode="contain"
           />
           <View style={styles.pageCount}>
@@ -301,7 +307,9 @@ function createStyles(theme: AppTheme) {
       minWidth: 88,
       paddingHorizontal: 12,
       borderRadius: theme.radius.md,
-      backgroundColor: theme.accent,
+      backgroundColor: theme.surface,
+      borderWidth: 1.5,
+      borderColor: theme.accent,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
@@ -320,7 +328,6 @@ function createStyles(theme: AppTheme) {
       justifyContent: "center",
     },
     preview: { width: "100%", height: "100%" },
-    previewRotated: { transform: [{ rotate: "90deg" }] },
     pageCount: {
       position: "absolute",
       right: 12,

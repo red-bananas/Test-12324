@@ -96,7 +96,7 @@ def prepare(slug: str) -> None:
     assets = app_dir / "assets/icon.png"
 
     if not source.exists():
-        raise SystemExit(f"Missing {source} — run capture-tile-merge-screenshots.mjs first")
+        raise SystemExit(f"Missing {source} — add raw screenshots to store/source/ first")
 
     upload.mkdir(parents=True, exist_ok=True)
 

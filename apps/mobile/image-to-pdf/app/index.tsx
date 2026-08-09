@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -9,7 +9,7 @@ import { triggerTapHaptic } from "../lib/haptics";
 import { pickImagesFromGallery, warmGalleryPicker } from "../lib/picker";
 import { loadRecents, sortRecentsDesc } from "../lib/recents";
 import { clearSession, setSessionPages } from "../lib/session";
-import { openFile, saveCopyToFiles, shareFile, showInFilesLocation } from "../lib/share";
+import { openFile, saveCopyToFiles, shareFile, showInFilesLocation, isBenignShareError } from "../lib/share";
 import { AppTheme, useAppTheme } from "../lib/theme";
 import type { RecentPdf } from "../lib/types";
 
@@ -82,7 +82,8 @@ export default function HubScreen() {
       if (copied) {
         showToast("Copy saved to the folder you selected.", "success");
       }
-    } catch {
+    } catch (error) {
+      if (action === "share" && isBenignShareError(error)) return;
       if (action === "share") {
         showMessage("Couldn't share PDF", "The file may have been moved or removed.");
         return;
@@ -109,9 +110,12 @@ export default function HubScreen() {
       >
         <View style={styles.topBar}>
           <View style={styles.brand}>
-            <View style={styles.brandMark}>
-              <Ionicons name="documents-outline" size={19} color={theme.accentText} />
-            </View>
+            <Image
+              source={require("../assets/app-logo.png")}
+              style={styles.brandLogo}
+              resizeMode="cover"
+              accessibilityIgnoresInvertColors
+            />
             <Text style={styles.appTitle}>Image to PDF</Text>
           </View>
           <Pressable
@@ -137,7 +141,7 @@ export default function HubScreen() {
             style={({ pressed }) => [styles.galleryTile, pressed && styles.primaryPressed]}
           >
             <View style={styles.galleryIcon}>
-              <Ionicons name="images-outline" size={24} color={theme.accentText} />
+              <Ionicons name="images-outline" size={24} color={theme.accentBright} />
             </View>
             <Text style={styles.galleryTitle}>Gallery</Text>
             <Text style={styles.gallerySubtitle}>Pick photos</Text>
@@ -167,7 +171,9 @@ export default function HubScreen() {
         </View>
 
         <View style={styles.recentsHeading}>
-          <Text style={styles.sectionTitle}>Recent PDFs</Text>
+          <Text style={styles.sectionTitle}>
+            {recents.length === 0 ? "No recent PDFs" : "Recent PDFs"}
+          </Text>
           {recents.length > 0 ? <Text style={styles.sectionMeta}>{recents.length} files</Text> : null}
         </View>
       </View>
@@ -192,13 +198,10 @@ function createStyles(theme: AppTheme) {
     header: { gap: 12 },
     topBar: { minHeight: 56, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
     brand: { flexDirection: "row", alignItems: "center", gap: 10 },
-    brandMark: {
-      width: 36,
-      height: 36,
-      borderRadius: 11,
-      backgroundColor: theme.accent,
-      alignItems: "center",
-      justifyContent: "center",
+    brandLogo: {
+      width: 44,
+      height: 44,
+      borderRadius: 12,
     },
     appTitle: { ...theme.type.bodyStrong, color: theme.text, fontSize: 17 },
     settingsButton: {
@@ -223,7 +226,9 @@ function createStyles(theme: AppTheme) {
       gap: 6,
       padding: theme.space.md,
       borderRadius: theme.radius.xl,
-      backgroundColor: theme.accent,
+      backgroundColor: theme.surface,
+      borderWidth: 1.5,
+      borderColor: theme.accent,
       ...theme.shadow.accent,
     },
     primaryPressed: { opacity: 0.92, transform: [{ scale: 0.985 }] },
@@ -231,12 +236,12 @@ function createStyles(theme: AppTheme) {
       width: 48,
       height: 48,
       borderRadius: theme.radius.md,
-      backgroundColor: "rgba(255,255,255,0.16)",
+      backgroundColor: theme.accentMuted,
       alignItems: "center",
       justifyContent: "center",
     },
-    galleryTitle: { color: theme.accentText, fontSize: 15, fontWeight: "700" },
-    gallerySubtitle: { color: "rgba(255,255,255,0.76)", fontSize: 11, textAlign: "center" },
+    galleryTitle: { color: theme.accentBright, fontSize: 15, fontWeight: "700" },
+    gallerySubtitle: { color: theme.textSecondary, fontSize: 11, textAlign: "center" },
     cameraTile: {
       flex: 1,
       minHeight: 108,

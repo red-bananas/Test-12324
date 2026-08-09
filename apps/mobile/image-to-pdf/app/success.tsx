@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -17,7 +18,7 @@ import { PrimaryButton, SecondaryButton } from "../components/ui";
 import { formatFileSize, renamePdf, displayExportPath, deleteIfExists, isTemporaryExportPath, savePdfToAppStorage } from "../lib/fs";
 import { addRecent, renameRecent } from "../lib/recents";
 import { clearSession } from "../lib/session";
-import { openFile, saveCopyToFiles, shareFile, showInFilesLocation } from "../lib/share";
+import { openFile, saveCopyToFiles, shareFile, showInFilesLocation, isBenignShareError } from "../lib/share";
 import { AppTheme, useAppTheme } from "../lib/theme";
 
 export default function SuccessScreen() {
@@ -41,13 +42,36 @@ export default function SuccessScreen() {
   const [renameDraft, setRenameDraft] = useState(name.replace(/\.pdf$/i, ""));
   const [renaming, setRenaming] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
   const sizeBytes = Number(params.sizeBytes ?? 0);
   const pageCount = Number(params.pageCount ?? 0);
+
+  useEffect(() => {
+    if (!renameVisible) {
+      setKeyboardOffset(0);
+      return;
+    }
+
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showSub = Keyboard.addListener(showEvent, (event) => {
+      setKeyboardOffset(event.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardOffset(0);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [renameVisible]);
 
   const share = async () => {
     try {
       await shareFile(path);
-    } catch {
+    } catch (error) {
+      if (isBenignShareError(error)) return;
       showMessage("Couldn't share PDF", "The file is still saved on this device.");
     }
   };
@@ -157,15 +181,16 @@ export default function SuccessScreen() {
         <Pressable
           onPress={goHome}
           accessibilityRole="button"
-          accessibilityLabel="Go to home"
+          accessibilityLabel="Start new document"
           style={({ pressed }) => [styles.newButton, pressed && styles.pressed]}
         >
-          <Text style={styles.newButtonText}>Home</Text>
+          <Ionicons name="add" size={18} color={theme.accentText} />
+          <Text style={styles.newButtonText}>New</Text>
         </Pressable>
       </View>
 
       <View style={styles.successMark}>
-        <Ionicons name="checkmark" size={37} color={theme.isDark ? "#07150E" : "#FFFFFF"} />
+        <Ionicons name="checkmark" size={37} color={theme.accentBright} />
       </View>
 
       <View style={styles.heading}>
@@ -264,9 +289,18 @@ export default function SuccessScreen() {
       </View>
 
       <Modal visible={renameVisible} transparent animationType="fade" onRequestClose={() => setRenameVisible(false)}>
-        <KeyboardAvoidingView style={styles.modalBackdrop} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <KeyboardAvoidingView
+          style={styles.modalBackdrop}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? insets.top : 0}
+        >
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setRenameVisible(false)} accessibilityLabel="Close rename dialog" />
-          <View style={styles.renameCard}>
+          <View
+            style={[
+              styles.renameCard,
+              { marginBottom: keyboardOffset > 0 ? Math.max(theme.space.md, keyboardOffset - insets.bottom) : 0 },
+            ]}
+          >
             <Text style={styles.renameTitle}>Rename PDF</Text>
             <Text style={styles.renameHelp}>Use a clear name so it is easy to find later.</Text>
             <View style={styles.nameInputRow}>
@@ -319,9 +353,13 @@ function createStyles(theme: AppTheme) {
       minHeight: 36,
       paddingHorizontal: 12,
       borderRadius: theme.radius.md,
-      backgroundColor: theme.accent,
+      backgroundColor: theme.surface,
+      borderWidth: 1.5,
+      borderColor: theme.accent,
+      flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
+      gap: 4,
     },
     newButtonText: { color: theme.accentText, fontSize: 13, fontWeight: "700" },
     successMark: {
@@ -331,13 +369,11 @@ function createStyles(theme: AppTheme) {
       alignSelf: "center",
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: theme.success,
+      backgroundColor: theme.accentMuted,
+      borderWidth: 2,
+      borderColor: theme.accent,
       marginTop: theme.space.sm,
-      shadowColor: theme.success,
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.2,
-      shadowRadius: 18,
-      elevation: 5,
+      ...theme.shadow.accent,
     },
     subtitle: { color: theme.textSecondary, fontSize: 13, textAlign: "center" },
     heading: { alignItems: "center", marginBottom: theme.space.sm, gap: 5 },
@@ -404,7 +440,7 @@ function createStyles(theme: AppTheme) {
     homeSection: { marginTop: theme.space.lg, gap: 9 },
     noWatermark: { minHeight: 38, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
     noWatermarkText: { color: theme.success, fontSize: 11, fontWeight: "600" },
-    modalBackdrop: { flex: 1, justifyContent: "center", padding: theme.space.lg, backgroundColor: "rgba(0,0,0,0.55)" },
+    modalBackdrop: { flex: 1, justifyContent: "flex-end", padding: theme.space.lg, backgroundColor: "rgba(0,0,0,0.55)" },
     renameCard: { padding: theme.space.lg, borderRadius: theme.radius.xl, backgroundColor: theme.bgElevated, borderWidth: 1, borderColor: theme.border, gap: theme.space.md },
     renameTitle: { ...theme.type.title, color: theme.text },
     renameHelp: { color: theme.textSecondary, fontSize: 12, lineHeight: 18 },
@@ -414,7 +450,16 @@ function createStyles(theme: AppTheme) {
     renameActions: { flexDirection: "row", justifyContent: "flex-end", gap: theme.space.sm },
     renameCancel: { minWidth: 76, minHeight: 44, alignItems: "center", justifyContent: "center" },
     renameCancelText: { color: theme.textSecondary, fontSize: 13, fontWeight: "700" },
-    renameSave: { minWidth: 86, minHeight: 44, alignItems: "center", justifyContent: "center", borderRadius: theme.radius.md, backgroundColor: theme.accent },
+    renameSave: {
+      minWidth: 86,
+      minHeight: 44,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: theme.radius.md,
+      backgroundColor: theme.surface,
+      borderWidth: 1.5,
+      borderColor: theme.accent,
+    },
     renameSaveText: { color: theme.accentText, fontSize: 13, fontWeight: "700" },
     disabled: { opacity: 0.55 },
     pressed: { opacity: 0.65 },

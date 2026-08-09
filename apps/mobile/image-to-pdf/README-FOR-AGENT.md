@@ -30,6 +30,8 @@ For **Skia** (`@shopify/react-native-skia`) — ask human first; run `npx expo i
 
 ## Where to put things
 
+**All paths below are relative to `apps/mobile/image-to-pdf/` — maintain icons and assets in this app only.**
+
 | Path | Purpose |
 |------|---------|
 | `app/` | expo-router screens |
@@ -38,7 +40,10 @@ For **Skia** (`@shopify/react-native-skia`) — ask human first; run `npx expo i
 | `components/` | UI |
 | `tests/` | Jest |
 | `PLAY_STORE.md` | Listing copy |
-| `store/` | Screenshots + creative brief |
+| `store/source/logo.png` | Canonical app icon source (human) — see `store-creatives` skill |
+| `store/source/` | Raw screenshots and other inputs |
+| `store/upload/` | Play Console finals (generated or human-designed) — **not** icon source |
+| `assets/icon.png` etc. | Generated icons — run `python tools/mobile/generate-mobile-icons.py image-to-pdf` |
 
 ## Build approach (game)
 

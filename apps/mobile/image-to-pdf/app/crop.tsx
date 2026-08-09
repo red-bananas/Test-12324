@@ -18,6 +18,7 @@ import {
   CropHandle,
   CropRect,
   FULL_CROP,
+  isFullCrop,
   resizeCrop,
   rotateCrop,
 } from "../lib/crop";
@@ -93,6 +94,9 @@ function makeHandleResponder(
   return PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: () => true,
+    onStartShouldSetPanResponderCapture: () => true,
+    onMoveShouldSetPanResponderCapture: () => true,
+    onPanResponderTerminationRequest: () => false,
     onPanResponderGrant: () => {
       startRef.current = cropRef.current;
     },
@@ -229,6 +233,10 @@ export default function CropScreen() {
     () => makeHandleResponder("right", cropRef, startCropRef, imageRect, setCrop),
     [imageRect, setCrop],
   );
+  const move = useMemo(
+    () => makeHandleResponder("move", cropRef, startCropRef, imageRect, setCrop),
+    [imageRect, setCrop],
+  );
 
   const localCropBox = {
     left: crop.x * imageRect.width,
@@ -273,7 +281,7 @@ export default function CropScreen() {
           originalUri: prepared.sourceUri,
           originalWidth: prepared.sourceWidth,
           originalHeight: prepared.sourceHeight,
-          crop: undefined,
+          crop: isFullCrop(itemCrop) ? undefined : itemCrop,
           cropRotation: prepared.totalRotation,
         };
       }
@@ -298,7 +306,7 @@ export default function CropScreen() {
       style={[styles.handleTouch, positionStyle]}
       {...responder.panHandlers}
     >
-      <View style={styles.cornerMark}>
+      <View pointerEvents="none" style={styles.cornerMark}>
         <View style={[styles.edgeMark, styles.edgeHorizontalMark, horizontalStyle]} />
         <View style={[styles.edgeMark, styles.edgeVerticalMark, verticalStyle]} />
       </View>
@@ -316,7 +324,7 @@ export default function CropScreen() {
       style={[styles.edgeTouch, positionStyle]}
       {...responder.panHandlers}
     >
-      <View style={[styles.edgeMark, markStyle]} />
+      <View pointerEvents="none" style={[styles.edgeMark, markStyle]} />
     </View>
   );
 
@@ -347,32 +355,56 @@ export default function CropScreen() {
       </View>
 
       <View style={styles.stage} onLayout={(event) => setStage(event.nativeEvent.layout)}>
-        {working ? (
-          <View style={[styles.stageFrame, imageRect]}>
-            <Image
-              source={{ uri: working.uri }}
-              style={{ width: imageRect.width, height: imageRect.height }}
-              resizeMode="stretch"
-            />
-            <View pointerEvents="none" style={[styles.mask, { left: 0, top: 0, width: imageRect.width, height: localCropBox.top }]} />
-            <View pointerEvents="none" style={[styles.mask, { left: 0, top: localCropBox.top + localCropBox.height, width: imageRect.width, height: imageRect.height - localCropBox.top - localCropBox.height }]} />
-            <View pointerEvents="none" style={[styles.mask, { left: 0, top: localCropBox.top, width: localCropBox.left, height: localCropBox.height }]} />
-            <View pointerEvents="none" style={[styles.mask, { left: localCropBox.left + localCropBox.width, top: localCropBox.top, width: imageRect.width - localCropBox.left - localCropBox.width, height: localCropBox.height }]} />
-            <View pointerEvents="box-none" style={[styles.cropBox, localCropBox]}>
-              <View pointerEvents="none" style={[styles.gridLineVertical, { left: "33.33%" }]} />
-              <View pointerEvents="none" style={[styles.gridLineVertical, { left: "66.66%" }]} />
-              <View pointerEvents="none" style={[styles.gridLineHorizontal, { top: "33.33%" }]} />
-              <View pointerEvents="none" style={[styles.gridLineHorizontal, { top: "66.66%" }]} />
-              {renderEdgeHandle("Top edge crop handle", styles.edgeTop, styles.edgeHorizontalMark, top)}
-              {renderEdgeHandle("Bottom edge crop handle", styles.edgeBottom, styles.edgeHorizontalMark, bottom)}
-              {renderEdgeHandle("Left edge crop handle", styles.edgeLeft, styles.edgeVerticalMark, left)}
-              {renderEdgeHandle("Right edge crop handle", styles.edgeRight, styles.edgeVerticalMark, right)}
-              {renderCornerHandle("Top left crop handle", styles.topLeft, styles.topLeftH, styles.topLeftV, topLeft)}
-              {renderCornerHandle("Top right crop handle", styles.topRight, styles.topRightH, styles.topRightV, topRight)}
-              {renderCornerHandle("Bottom left crop handle", styles.bottomLeft, styles.bottomLeftH, styles.bottomLeftV, bottomLeft)}
-              {renderCornerHandle("Bottom right crop handle", styles.bottomRight, styles.bottomRightH, styles.bottomRightV, bottomRight)}
+        {working && imageRect.width > 0 ? (
+          <>
+            <View style={[styles.stageFrame, imageRect]}>
+              <Image
+                source={{ uri: working.uri }}
+                style={{ width: imageRect.width, height: imageRect.height }}
+                resizeMode="stretch"
+              />
+              <View pointerEvents="none" style={[styles.mask, { left: 0, top: 0, width: imageRect.width, height: localCropBox.top }]} />
+              <View pointerEvents="none" style={[styles.mask, { left: 0, top: localCropBox.top + localCropBox.height, width: imageRect.width, height: imageRect.height - localCropBox.top - localCropBox.height }]} />
+              <View pointerEvents="none" style={[styles.mask, { left: 0, top: localCropBox.top, width: localCropBox.left, height: localCropBox.height }]} />
+              <View pointerEvents="none" style={[styles.mask, { left: localCropBox.left + localCropBox.width, top: localCropBox.top, width: imageRect.width - localCropBox.left - localCropBox.width, height: localCropBox.height }]} />
+              <View pointerEvents="none" style={[styles.cropBoxBorder, localCropBox]}>
+                <View style={[styles.gridLineVertical, { left: "33.33%" }]} />
+                <View style={[styles.gridLineVertical, { left: "66.66%" }]} />
+                <View style={[styles.gridLineHorizontal, { top: "33.33%" }]} />
+                <View style={[styles.gridLineHorizontal, { top: "66.66%" }]} />
+              </View>
             </View>
-          </View>
+
+            <View
+              style={[
+                styles.handleOverlay,
+                {
+                  left: imageRect.left,
+                  top: imageRect.top,
+                  width: imageRect.width,
+                  height: imageRect.height,
+                },
+              ]}
+              collapsable={false}
+              pointerEvents="box-none"
+            >
+              <View style={[styles.cropHandleFrame, localCropBox]} collapsable={false} pointerEvents="box-none">
+                <View
+                  accessibilityLabel="Move crop area"
+                  style={styles.moveArea}
+                  {...move.panHandlers}
+                />
+                {renderEdgeHandle("Top edge crop handle", styles.edgeTop, styles.edgeHorizontalMark, top)}
+                {renderEdgeHandle("Bottom edge crop handle", styles.edgeBottom, styles.edgeHorizontalMark, bottom)}
+                {renderEdgeHandle("Left edge crop handle", styles.edgeLeft, styles.edgeVerticalMark, left)}
+                {renderEdgeHandle("Right edge crop handle", styles.edgeRight, styles.edgeVerticalMark, right)}
+                {renderCornerHandle("Top left crop handle", styles.topLeft, styles.topLeftH, styles.topLeftV, topLeft)}
+                {renderCornerHandle("Top right crop handle", styles.topRight, styles.topRightH, styles.topRightV, topRight)}
+                {renderCornerHandle("Bottom left crop handle", styles.bottomLeft, styles.bottomLeftH, styles.bottomLeftV, bottomLeft)}
+                {renderCornerHandle("Bottom right crop handle", styles.bottomRight, styles.bottomRightH, styles.bottomRightV, bottomRight)}
+              </View>
+            </View>
+          </>
         ) : (
           <ActivityIndicator color={theme.accentBright} />
         )}
@@ -382,7 +414,7 @@ export default function CropScreen() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pageStrip}>
           {pages.map((item, itemIndex) => {
             const selected = itemIndex === selectedIndex;
-            const edited = dirtyIds.has(item.id) || !!item.crop;
+            const edited = dirtyIds.has(item.id) || (!!item.crop && !isFullCrop(item.crop));
             return (
               <Pressable
                 key={item.id}
@@ -404,7 +436,7 @@ export default function CropScreen() {
       </View>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + theme.space.md }]}>
-        <Text style={styles.help}>Pull handles to crop · Select another page to batch edit</Text>
+        <Text style={styles.help}>Drag inside box to move · Pull handles to resize</Text>
         <Pressable
           onPress={() => void resetPageEdits()}
           accessibilityRole="button"
@@ -427,21 +459,33 @@ function createStyles(theme: AppTheme) {
     headerCopy: { flex: 1, alignItems: "center" },
     title: { ...theme.type.title, color: theme.text },
     subtitle: { color: theme.textTertiary, fontSize: 10, marginTop: 2, textAlign: "center" },
-    doneButton: { minWidth: 64, height: 42, borderRadius: theme.radius.md, alignItems: "center", justifyContent: "center", backgroundColor: theme.accent },
+    doneButton: {
+      minWidth: 64,
+      height: 42,
+      borderRadius: theme.radius.md,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.surface,
+      borderWidth: 1.5,
+      borderColor: theme.accent,
+    },
     doneText: { color: theme.accentText, fontSize: 13, fontWeight: "700" },
     disabled: { opacity: 0.5 },
-    stage: { flex: 1, position: "relative", overflow: "hidden", backgroundColor: theme.isDark ? "#050609" : "#E9EBF0", alignItems: "center", justifyContent: "center" },
+    stage: { flex: 1, position: "relative", overflow: "visible", backgroundColor: theme.isDark ? "#050609" : "#E9EBF0" },
     stageFrame: { position: "absolute", overflow: "hidden" },
+    handleOverlay: { position: "absolute", overflow: "visible" },
+    cropHandleFrame: { position: "absolute", overflow: "visible" },
     mask: { position: "absolute", backgroundColor: "rgba(0,0,0,0.58)" },
-    cropBox: { position: "absolute", borderWidth: 2, borderColor: "#FFFFFF" },
+    cropBoxBorder: { position: "absolute", borderWidth: 2, borderColor: "#FFFFFF" },
     gridLineVertical: { position: "absolute", top: 0, bottom: 0, width: StyleSheet.hairlineWidth, backgroundColor: "rgba(255,255,255,0.55)" },
     gridLineHorizontal: { position: "absolute", left: 0, right: 0, height: StyleSheet.hairlineWidth, backgroundColor: "rgba(255,255,255,0.55)" },
-    handleTouch: { position: "absolute", width: 42, height: 42, alignItems: "center", justifyContent: "center" },
+    moveArea: { ...StyleSheet.absoluteFillObject, backgroundColor: "transparent" },
+    handleTouch: { position: "absolute", width: 44, height: 44, alignItems: "center", justifyContent: "center", zIndex: 3 },
     cornerMark: { width: 28, height: 28 },
-    topLeft: { left: -21, top: -21 },
-    topRight: { right: -21, top: -21 },
-    bottomLeft: { left: -21, bottom: -21 },
-    bottomRight: { right: -21, bottom: -21 },
+    topLeft: { left: -22, top: -22 },
+    topRight: { right: -22, top: -22 },
+    bottomLeft: { left: -22, bottom: -22 },
+    bottomRight: { right: -22, bottom: -22 },
     topLeftH: { position: "absolute", top: 0, left: 0 },
     topLeftV: { position: "absolute", top: 0, left: 0 },
     topRightH: { position: "absolute", top: 0, right: 0 },
@@ -450,21 +494,25 @@ function createStyles(theme: AppTheme) {
     bottomLeftV: { position: "absolute", bottom: 0, left: 0 },
     bottomRightH: { position: "absolute", bottom: 0, right: 0 },
     bottomRightV: { position: "absolute", bottom: 0, right: 0 },
-    edgeTouch: { position: "absolute", alignItems: "center", justifyContent: "center" },
+    edgeTouch: { position: "absolute", alignItems: "center", justifyContent: "center", zIndex: 2 },
     edgeMark: { backgroundColor: theme.accentBright, borderRadius: 2 },
     edgeHorizontalMark: { width: 28, height: 4 },
     edgeVerticalMark: { width: 4, height: 28 },
-    edgeTop: { top: -16, left: "50%", marginLeft: -24, width: 48, height: 32 },
-    edgeBottom: { bottom: -16, left: "50%", marginLeft: -24, width: 48, height: 32 },
-    edgeLeft: { left: -16, top: "50%", marginTop: -24, width: 32, height: 48 },
-    edgeRight: { right: -16, top: "50%", marginTop: -24, width: 32, height: 48 },
+    edgeTop: { top: -18, left: "50%", marginLeft: -28, width: 56, height: 36 },
+    edgeBottom: { bottom: -18, left: "50%", marginLeft: -28, width: 56, height: 36 },
+    edgeLeft: { left: -18, top: "50%", marginTop: -28, width: 36, height: 56 },
+    edgeRight: { right: -18, top: "50%", marginTop: -28, width: 36, height: 56 },
     pagePicker: { minHeight: 82, justifyContent: "center", backgroundColor: theme.bgElevated, borderTopWidth: 1, borderTopColor: theme.border },
     pageStrip: { gap: 9, paddingHorizontal: theme.space.md, paddingVertical: 8 },
     thumb: { width: 50, height: 64, borderRadius: 7, borderWidth: 2, borderColor: "transparent", overflow: "hidden", backgroundColor: theme.surface },
     thumbSelected: { borderColor: theme.accentBright },
     thumbImage: { width: "100%", height: "100%" },
     thumbNumber: { position: "absolute", left: 3, bottom: 3, minWidth: 17, height: 17, paddingHorizontal: 3, borderRadius: 5, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(5,6,9,0.76)" },
-    thumbNumberSelected: { backgroundColor: theme.accent },
+    thumbNumberSelected: {
+      backgroundColor: theme.accentMuted,
+      borderWidth: 1.5,
+      borderColor: theme.accent,
+    },
     thumbNumberText: { color: "#FFFFFF", fontSize: 9, fontWeight: "800" },
     editedIcon: { position: "absolute", right: 4, top: 4, padding: 3, backgroundColor: "rgba(5,6,9,0.7)", borderRadius: 4 },
     footer: {

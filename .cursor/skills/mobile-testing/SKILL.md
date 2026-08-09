@@ -14,15 +14,17 @@ Automated testing for apps under `apps/mobile/{slug}/`. Follow [AGENTS.md](../..
 
 ## Device testing strategy (team convention)
 
-Two tiers — do not skip straight to cloud builds for everyday iteration.
+Three tiers — USB dev build is the daily driver; do not use Expo Go for ads or native modules.
 
 | Tier | When | How |
 |------|------|-----|
-| **Instant on phone** | While coding, bugfixes, quick UX checks | **Expo Go** — `npm run start:lan` (or `--tunnel`), same Wi‑Fi, SDK must match phone Expo Go |
-| **Final on phone** | Pre-release, store upload, real install behavior | **Expo cloud (EAS Build)** — preview APK / production AAB, sideload or internal track |
+| **A — Web smoke** | Logic/UI regression in CI | Playwright on `expo start --web` (`npm run test:e2e:mobile`) |
+| **B — USB dev build (default)** | Daily coding, ads, haptics, persistence | `npm run android` (`expo run:android --device`) — phone over USB, Android SDK required |
+| **C — EAS preview / production** | Pre-release gate, store upload | `npm run build:preview` → sideload APK; production AAB for Play internal |
 
-**Expo Go** = fast feedback, hot reload, no build wait.  
-**EAS cloud** = standalone app, correct icons/signing, haptics, persistence, Play-internal — treat as the gate before release.
+**USB dev build** = real native modules (AdMob, haptics), fast incremental rebuilds after first compile.  
+**Expo Go** = optional only for non-native UI tweaks; **not valid** for AdMob or release sign-off.  
+**EAS cloud** = standalone signing, correct icons, Play-internal — gate before store submit.
 
 Do not use Expo Go alone as sign-off for Play Store. Do not use EAS for every code tweak.
 
@@ -30,8 +32,8 @@ Do not use Expo Go alone as sign-off for Play Store. Do not use EAS for every co
 
 | Situation | Start here |
 |-----------|------------|
-| Bugfix or new feature in a mobile app | Layer 1 → 2; Layer 3 if UI/input touched; **Expo Go** for instant phone check |
-| Before Play Store / EAS production build | All layers + **EAS preview APK** + Maestro on device |
+| Bugfix or new feature in a mobile app | Layer 1 → 2; Layer 3 if UI/input touched; **USB dev build** for phone check |
+| Before Play Store / EAS production build | All layers + **USB dev build** + **EAS preview APK** + Maestro on device |
 | User says "test the mobile app" | Run commands below |
 | Pure game logic change | Layer 2 required; add regression case |
 
@@ -130,10 +132,23 @@ Install Maestro CLI once, then run flows before release.
 
 | Goal | Command |
 |------|---------|
-| **Instant test on phone (default)** | `npm run start:lan` + **Expo Go** (`exp://PC_IP:8082`) |
-| Tunnel when LAN blocked | `npm run start:tunnel` + Expo Go |
-| **Final test on phone (pre-release)** | `eas build --platform android --profile preview` → install APK from Expo cloud |
-| Play Store internal | Upload AAB after `eas build --profile production` |
+| **Daily test on phone (default)** | `npm run android` — USB device, Android SDK ([setup](../../../tools/mobile/setup-android-cli.ps1)) |
+| Quick UI only (no ads/native) | `npx expo start` + Expo Go — optional, not release sign-off |
+| **Pre-release on phone** | `npm run build:preview` → install APK from EAS |
+| Play Store internal | `npm run build:production` → upload AAB |
+
+### Windows: CMake / path-too-long failures
+
+Use **only** `C:\Users\tejas.ve\temp 12` as the short-path build workspace (never `C:\iap`, `subst`, or other ad-hoc folders).
+
+```powershell
+# After icons/code are updated in the repo:
+robocopy "...\Auto-App\apps\mobile\{slug}" "C:\Users\tejas.ve\temp 12\{slug}" /MIR /XD android\.gradle android\app\build android\build .expo
+cd "C:\Users\tejas.ve\temp 12\{slug}"
+npm run android
+```
+
+Repo remains source of truth; temp 12 is for native compile/install only.
 
 ## CI
 
