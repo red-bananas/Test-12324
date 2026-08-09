@@ -13,12 +13,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFeedback } from "../components/Feedback";
-import { ScreenHeader } from "../components/ScreenHeader";
 import { PrimaryButton, SecondaryButton } from "../components/ui";
-import { formatFileSize, renamePdf } from "../lib/fs";
-import { renameRecent } from "../lib/recents";
+import { formatFileSize, renamePdf, displayExportPath, deleteIfExists, isTemporaryExportPath, savePdfToAppStorage } from "../lib/fs";
+import { addRecent, renameRecent } from "../lib/recents";
 import { clearSession } from "../lib/session";
-import { openFile, saveCopyToFiles, shareFile } from "../lib/share";
+import { openFile, saveCopyToFiles, shareFile, showInFilesLocation } from "../lib/share";
 import { AppTheme, useAppTheme } from "../lib/theme";
 
 export default function SuccessScreen() {
@@ -32,13 +31,16 @@ export default function SuccessScreen() {
     path?: string;
     sizeBytes?: string;
     pageCount?: string;
+    saved?: string;
   }>();
 
   const [name, setName] = useState(params.name ?? "document.pdf");
   const [path, setPath] = useState(params.path ?? "");
+  const [saved, setSaved] = useState(params.saved === "1" || !isTemporaryExportPath(params.path ?? ""));
   const [renameVisible, setRenameVisible] = useState(false);
   const [renameDraft, setRenameDraft] = useState(name.replace(/\.pdf$/i, ""));
   const [renaming, setRenaming] = useState(false);
+  const [saving, setSaving] = useState(false);
   const sizeBytes = Number(params.sizeBytes ?? 0);
   const pageCount = Number(params.pageCount ?? 0);
 
@@ -67,11 +69,54 @@ export default function SuccessScreen() {
     }
   };
 
+  const saveToApp = async () => {
+    if (saving || saved) return;
+    setSaving(true);
+    try {
+      const previousPath = path;
+      const stored = await savePdfToAppStorage(previousPath, name);
+      if (previousPath !== stored.filePath) {
+        await deleteIfExists(previousPath);
+      }
+      await addRecent({
+        id: stored.fileName,
+        name: stored.fileName,
+        path: stored.filePath,
+        sizeBytes,
+        pageCount,
+        createdAt: new Date().toISOString(),
+      });
+      setName(stored.fileName);
+      setPath(stored.filePath);
+      setSaved(true);
+      showToast("PDF saved on this device.", "success");
+    } catch {
+      showMessage("Couldn't save PDF", "Free up space or try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const openInFiles = async () => {
+    if (!saved) {
+      showMessage("Save this PDF first", "Choose Save to keep it in app storage.");
+      return;
+    }
+    try {
+      await showInFilesLocation(path);
+    } catch {
+      showMessage("Couldn't open in Files", "Open Files and browse Android/data for this app.");
+    }
+  };
+
   const backToEdit = () => {
     router.replace("/editor");
   };
 
-  const createAnother = () => {
+  const goHome = async () => {
+    if (!saved && path) {
+      await deleteIfExists(path);
+    }
     clearSession();
     router.replace("/");
   };
@@ -82,7 +127,9 @@ export default function SuccessScreen() {
     try {
       const previousPath = path;
       const renamed = await renamePdf(previousPath, renameDraft);
-      await renameRecent(previousPath, { path: renamed.filePath, name: renamed.fileName });
+      if (saved) {
+        await renameRecent(previousPath, { path: renamed.filePath, name: renamed.fileName });
+      }
       setName(renamed.fileName);
       setPath(renamed.filePath);
       setRenameDraft(renamed.fileName.replace(/\.pdf$/i, ""));
@@ -97,15 +144,35 @@ export default function SuccessScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + theme.space.xs, paddingBottom: insets.bottom + theme.space.md }]}>
-      <ScreenHeader title="PDF ready" onBack={backToEdit} backLabel="Back to edit" />
+      <View style={styles.topBar}>
+        <Pressable
+          onPress={backToEdit}
+          accessibilityRole="button"
+          accessibilityLabel="Back to edit"
+          style={({ pressed }) => [styles.editBack, pressed && styles.pressed]}
+        >
+          <Ionicons name="arrow-back" size={21} color={theme.text} />
+          <Text style={styles.editBackText}>Edit</Text>
+        </Pressable>
+        <Pressable
+          onPress={goHome}
+          accessibilityRole="button"
+          accessibilityLabel="Go to home"
+          style={({ pressed }) => [styles.newButton, pressed && styles.pressed]}
+        >
+          <Text style={styles.newButtonText}>Home</Text>
+        </Pressable>
+      </View>
 
       <View style={styles.successMark}>
         <Ionicons name="checkmark" size={37} color={theme.isDark ? "#07150E" : "#FFFFFF"} />
       </View>
 
       <View style={styles.heading}>
-        <Text style={styles.title}>Your PDF is ready</Text>
-        <Text style={styles.subtitle}>Saved securely on this device</Text>
+        <Text style={styles.title}>PDF ready</Text>
+        <Text style={styles.subtitle}>
+          {saved ? "Saved securely on this device" : "Save to keep this PDF on your device"}
+        </Text>
       </View>
 
       <View style={styles.fileSummary}>
@@ -119,7 +186,10 @@ export default function SuccessScreen() {
             <Ionicons name="document-text-outline" size={25} color={theme.accentBright} />
           </View>
           <View style={styles.fileMeta}>
-            <Text style={styles.name} numberOfLines={2}>{name}</Text>
+            <Text style={styles.name} numberOfLines={2}>
+              {name}
+              {!saved ? <Text style={styles.notSaved}> (Not saved)</Text> : null}
+            </Text>
             <Text style={styles.details}>
               {pageCount} {pageCount === 1 ? "page" : "pages"} · {formatFileSize(sizeBytes)}
             </Text>
@@ -132,30 +202,59 @@ export default function SuccessScreen() {
           hitSlop={8}
           style={({ pressed }) => [styles.editButton, pressed && styles.pressed]}
         >
-          <Ionicons name="create-outline" size={22} color={theme.accentBright} />
+          <Text style={styles.editText}>Edit</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.locationRow}>
+        <Text style={styles.location} numberOfLines={2}>{displayExportPath(path)}</Text>
+        <Pressable
+          onPress={() => void openInFiles()}
+          disabled={!saved}
+          accessibilityRole="button"
+          accessibilityLabel="Open in Files explorer"
+          accessibilityState={{ disabled: !saved }}
+          hitSlop={8}
+          style={({ pressed }) => [styles.filesLink, (!saved || pressed) && styles.pressed, !saved && styles.filesLinkDisabled]}
+        >
+          <Text style={[styles.filesLinkText, !saved && styles.filesLinkTextDisabled]}>Files</Text>
+          <Ionicons name="chevron-forward" size={16} color={saved ? theme.accentBright : theme.textTertiary} />
         </Pressable>
       </View>
 
       <View style={styles.actions}>
-        <PrimaryButton
-          label="Share PDF"
-          onPress={() => void share()}
-          icon={<Ionicons name="share-outline" size={20} color={theme.accentText} />}
-        />
-        <SecondaryButton
-          label="Open PDF"
-          onPress={() => void open()}
-          icon={<Ionicons name="open-outline" size={20} color={theme.text} />}
-        />
+        {!saved ? (
+          <PrimaryButton
+            label={saving ? "Saving…" : "Save"}
+            onPress={() => void saveToApp()}
+            icon={<Ionicons name="download-outline" size={20} color={theme.accentText} />}
+          />
+        ) : null}
+        {saved ? (
+          <PrimaryButton
+            label="Share"
+            onPress={() => void share()}
+            icon={<Ionicons name="share-outline" size={20} color={theme.accentText} />}
+          />
+        ) : (
+          <SecondaryButton
+            label="Share"
+            onPress={() => void share()}
+            icon={<Ionicons name="share-outline" size={20} color={theme.text} />}
+          />
+        )}
         <SecondaryButton
           label="Save as"
           onPress={() => void saveAs()}
           icon={<Ionicons name="save-outline" size={20} color={theme.text} />}
         />
+      </View>
+
+      <View style={styles.homeSection}>
         <SecondaryButton
-          label="Create another"
-          onPress={createAnother}
-          icon={<Ionicons name="add" size={20} color={theme.text} />}
+          label="Home"
+          onPress={() => void goHome()}
+          icon={<Ionicons name="home-outline" size={20} color={theme.text} />}
         />
       </View>
 
@@ -203,6 +302,28 @@ export default function SuccessScreen() {
 function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: theme.bg, paddingHorizontal: theme.space.lg, gap: theme.space.sm },
+    topBar: {
+      minHeight: 48,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    editBack: {
+      minHeight: 44,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 2,
+    },
+    editBackText: { color: theme.text, fontSize: 14, fontWeight: "700" },
+    newButton: {
+      minHeight: 36,
+      paddingHorizontal: 12,
+      borderRadius: theme.radius.md,
+      backgroundColor: theme.accent,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    newButtonText: { color: theme.accentText, fontSize: 13, fontWeight: "700" },
     successMark: {
       width: 70,
       height: 70,
@@ -218,9 +339,9 @@ function createStyles(theme: AppTheme) {
       shadowRadius: 18,
       elevation: 5,
     },
-    heading: { alignItems: "center", marginBottom: theme.space.md, gap: 5 },
+    subtitle: { color: theme.textSecondary, fontSize: 13, textAlign: "center" },
+    heading: { alignItems: "center", marginBottom: theme.space.sm, gap: 5 },
     title: { ...theme.type.hero, color: theme.text, fontSize: 25, textAlign: "center" },
-    subtitle: { color: theme.textSecondary, fontSize: 13 },
     fileSummary: {
       minHeight: 84,
       flexDirection: "row",
@@ -248,16 +369,39 @@ function createStyles(theme: AppTheme) {
     },
     fileMeta: { flex: 1, gap: 5 },
     name: { color: theme.text, fontSize: 14, fontWeight: "700", lineHeight: 19 },
+    notSaved: { color: theme.warning, fontWeight: "700" },
     details: { color: theme.textTertiary, fontSize: 11 },
     editButton: {
-      width: 44,
-      height: 44,
+      minWidth: 52,
+      minHeight: 44,
+      paddingHorizontal: 10,
       alignItems: "center",
       justifyContent: "center",
       borderRadius: theme.radius.md,
       backgroundColor: theme.accentMuted,
     },
+    editText: { color: theme.accentBright, fontSize: 13, fontWeight: "700" },
+    locationRow: {
+      minHeight: 40,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: theme.space.sm,
+      paddingHorizontal: 4,
+    },
+    location: { flex: 1, color: theme.textSecondary, fontSize: 11, lineHeight: 15 },
+    filesLink: {
+      minHeight: 36,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 2,
+      paddingLeft: theme.space.sm,
+    },
+    filesLinkText: { color: theme.accentBright, fontSize: 13, fontWeight: "700" },
+    filesLinkDisabled: { opacity: 0.45 },
+    filesLinkTextDisabled: { color: theme.textTertiary },
     actions: { marginTop: "auto", gap: 9 },
+    homeSection: { marginTop: theme.space.lg, gap: 9 },
     noWatermark: { minHeight: 38, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
     noWatermarkText: { color: theme.success, fontSize: 11, fontWeight: "600" },
     modalBackdrop: { flex: 1, justifyContent: "center", padding: theme.space.lg, backgroundColor: "rgba(0,0,0,0.55)" },

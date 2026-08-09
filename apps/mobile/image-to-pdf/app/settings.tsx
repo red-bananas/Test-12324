@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFeedback } from "../components/Feedback";
 import { ScreenHeader } from "../components/ScreenHeader";
 import { OptionPill, SegmentedControl } from "../components/ui";
+import { clearSavedPdfs, formatFileSize, getSavedPdfsStorageBytes } from "../lib/fs";
+import { clearRecents } from "../lib/recents";
 import { defaultExportSettings, loadExportSettings, saveExportSettings } from "../lib/settings";
 import { AppTheme, useAppTheme } from "../lib/theme";
 import type { AppearancePreference, ExportSettings, PaperSize } from "../lib/types";
@@ -19,12 +22,25 @@ export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { theme, appearance, setAppearance } = useAppTheme();
+  const { confirm, showToast } = useFeedback();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [settings, setSettings] = useState<ExportSettings>(defaultExportSettings);
+  const [storageBytes, setStorageBytes] = useState(0);
+  const [clearing, setClearing] = useState(false);
+
+  const refreshStorage = useCallback(async () => {
+    setStorageBytes(await getSavedPdfsStorageBytes());
+  }, []);
 
   useEffect(() => {
     void loadExportSettings().then(setSettings);
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshStorage();
+    }, [refreshStorage]),
+  );
 
   const update = async (patch: Partial<ExportSettings>) => {
     const next = { ...settings, ...patch };
@@ -35,6 +51,29 @@ export default function SettingsScreen() {
   const updateAppearance = async (value: AppearancePreference) => {
     setSettings((current) => ({ ...current, appearance: value }));
     await setAppearance(value);
+  };
+
+  const clearSaved = () => {
+    if (storageBytes <= 0 || clearing) return;
+    confirm({
+      title: "Clear saved PDFs?",
+      message: "This removes all PDFs saved in app storage. Shared copies elsewhere are not affected.",
+      confirmLabel: "Clear",
+      destructive: true,
+      onConfirm: async () => {
+        setClearing(true);
+        try {
+          const removed = await clearSavedPdfs();
+          await clearRecents();
+          await refreshStorage();
+          showToast(removed > 0 ? `${removed} saved PDF${removed === 1 ? "" : "s"} removed.` : "No saved PDFs to remove.", "success");
+        } catch {
+          showToast("Couldn't clear saved PDFs.", "error");
+        } finally {
+          setClearing(false);
+        }
+      },
+    });
   };
 
   return (
@@ -87,6 +126,58 @@ export default function SettingsScreen() {
                   />
                 ))}
               </View>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Storage</Text>
+          <View style={styles.group}>
+            <View style={styles.field}>
+              <View style={styles.toggleRow}>
+                <View style={styles.fieldHeading}>
+                  <View style={styles.fieldIcon}><Ionicons name="save-outline" size={18} color={theme.accentBright} /></View>
+                  <View style={styles.fieldCopy}>
+                    <Text style={styles.fieldTitle}>Save exports automatically</Text>
+                    <Text style={styles.fieldHint}>Keep every PDF in app storage after Create</Text>
+                  </View>
+                </View>
+                <Switch
+                  value={settings.saveExportsAutomatically ?? false}
+                  onValueChange={(value) => void update({ saveExportsAutomatically: value })}
+                  trackColor={{ false: theme.borderStrong, true: theme.accent }}
+                  thumbColor={theme.accentText}
+                  accessibilityLabel="Save exports automatically"
+                />
+              </View>
+            </View>
+
+            <View style={styles.divider} />
+
+            <View style={styles.field}>
+              <View style={styles.fieldHeading}>
+                <View style={styles.fieldIcon}><Ionicons name="folder-outline" size={18} color={theme.accentBright} /></View>
+                <View style={styles.fieldCopy}>
+                  <Text style={styles.fieldTitle}>Saved PDFs</Text>
+                  <Text style={styles.fieldHint}>{formatFileSize(storageBytes)} in app storage</Text>
+                </View>
+              </View>
+              <Pressable
+                onPress={clearSaved}
+                disabled={storageBytes <= 0 || clearing}
+                accessibilityRole="button"
+                accessibilityLabel="Clear saved PDFs"
+                accessibilityState={{ disabled: storageBytes <= 0 || clearing }}
+                style={({ pressed }) => [
+                  styles.clearButton,
+                  (storageBytes <= 0 || clearing) && styles.clearButtonDisabled,
+                  pressed && storageBytes > 0 && !clearing && styles.pressed,
+                ]}
+              >
+                <Text style={[styles.clearButtonText, (storageBytes <= 0 || clearing) && styles.clearButtonTextDisabled]}>
+                  {clearing ? "Clearing…" : "Clear saved PDFs"}
+                </Text>
+              </Pressable>
             </View>
           </View>
         </View>
@@ -153,7 +244,8 @@ function createStyles(theme: AppTheme) {
       overflow: "hidden",
     },
     field: { padding: theme.space.md, gap: theme.space.md },
-    fieldHeading: { flexDirection: "row", alignItems: "center", gap: 12 },
+    toggleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: theme.space.sm },
+    fieldHeading: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
     fieldIcon: {
       width: 40,
       height: 40,
@@ -167,6 +259,19 @@ function createStyles(theme: AppTheme) {
     fieldHint: { color: theme.textTertiary, fontSize: 11 },
     divider: { height: 1, backgroundColor: theme.border, marginHorizontal: theme.space.md },
     qualityGrid: { flexDirection: "row", gap: theme.space.sm },
+    clearButton: {
+      minHeight: 44,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: theme.radius.md,
+      borderWidth: 1,
+      borderColor: theme.danger,
+      backgroundColor: theme.dangerMuted,
+    },
+    clearButtonDisabled: { opacity: 0.45, borderColor: theme.border },
+    clearButtonText: { color: theme.danger, fontSize: 13, fontWeight: "700" },
+    clearButtonTextDisabled: { color: theme.textTertiary },
+    pressed: { opacity: 0.7 },
     privacyGroup: {
       minHeight: 96,
       flexDirection: "row",

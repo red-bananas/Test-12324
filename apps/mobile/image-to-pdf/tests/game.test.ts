@@ -6,10 +6,11 @@ import {
   rotatePage,
   shouldWarnLargeDoc,
 } from "../lib/pages";
-import { exportPdf } from "../lib/pdf";
-import { displayExportPath, getUniquePdfName, normalizePdfName, toFileUri } from "../lib/fs";
+import { exportPdf, estimatePdfSizeBytes, preparePageForExport } from "../lib/pdf";
+import { displayExportPath, getUniquePdfName, isTemporaryExportPath, normalizePdfName, toFileUri } from "../lib/fs";
+import { fitImageForExport, mapPaperSizeForNative, toPdfImageUri } from "../lib/exportImage";
 import { applyRectCrop, cropRectToPixels, FULL_CROP, moveCrop, resizeCrop, rotateCrop } from "../lib/crop";
-import { addRecent, formatRecentDate, sortRecentsDesc } from "../lib/recents";
+import { addRecent, formatRecentDate, formatRecentMeta, sortRecentsDesc } from "../lib/recents";
 import type { PdfPage } from "../lib/types";
 
 const page = (id: string): PdfPage => ({
@@ -54,42 +55,104 @@ describe("pages", () => {
 });
 
 describe("pdf export", () => {
-  it("exportPdf calls createPdf with ordered image paths", async () => {
+  it("exportPdf compresses pages and writes a temporary PDF", async () => {
     const createPdf = jest.fn().mockResolvedValue({ filePath: "/tmp/out.pdf" });
-    const persistPdf = jest.fn().mockResolvedValue("file:///tmp/document.pdf");
+    const persistPdf = jest.fn().mockResolvedValue("file:///cache/ImageToPDF/temp/document.pdf");
+    const manipulate = jest.fn(async (uri: string) => ({ uri: `file:///cache/${uri.split("/").pop()}` }));
     const pages = [page("a"), page("b")];
     const result = await exportPdf(
       pages,
       { paperSize: "A4", jpegQuality: 0.85 },
       {
         createPdf,
-        manipulate: async (uri) => ({ uri }),
-        getExportDirectory: async () => "/tmp/",
+        manipulate,
+        getTempExportDirectory: async () => "/cache/ImageToPDF/temp/",
         getFileSize: async () => 1024,
         persistPdf,
       },
     );
+    expect(manipulate).toHaveBeenCalled();
     expect(createPdf).toHaveBeenCalledWith(
       expect.objectContaining({
-        imagePaths: ["file://a.jpg", "file://b.jpg"],
+        imagePaths: ["file:///cache/a.jpg", "file:///cache/b.jpg"],
         paperSize: "A4",
       }),
     );
     expect(result.pageCount).toBe(2);
-    expect(result.filePath).toBe("file:///tmp/document.pdf");
-    expect(result.sizeBytes).toBe(1024);
-    expect(persistPdf).toHaveBeenCalledWith("/tmp/out.pdf", expect.stringMatching(/^\/tmp\/PDF-\d{8}-\d{6}\.pdf$/));
+    expect(result.saved).toBe(false);
+    expect(result.filePath).toBe("file:///cache/ImageToPDF/temp/document.pdf");
+    expect(persistPdf).toHaveBeenCalledWith("/tmp/out.pdf", expect.stringMatching(/^\/cache\/ImageToPDF\/temp\/PDF-\d{8}-\d{6}\.pdf$/));
+  });
+
+  it("preparePageForExport re-encodes every page through the manipulator", async () => {
+    const manipulate = jest.fn(async (uri: string, actions) => ({
+      uri: "file:///cache/page.jpg",
+      width: 800,
+      height: 600,
+    }));
+    const prepared = await preparePageForExport(
+      { ...page("a"), width: 4000, height: 3000 },
+      { paperSize: "A4", jpegQuality: 0.7 },
+      {
+        createPdf: jest.fn(),
+        manipulate,
+        getFileSize: async () => 2048,
+      },
+    );
+    expect(manipulate).toHaveBeenCalledWith(
+      "file://a.jpg",
+      expect.arrayContaining([expect.objectContaining({ resize: expect.any(Object) })]),
+      0.7,
+    );
+    expect(prepared.imageUri).toBe("file:///cache/page.jpg");
+  });
+
+  it("estimates larger PDFs for more pages and higher quality", () => {
+    const settings = { paperSize: "A4" as const, jpegQuality: 0.85 };
+    const onePage = estimatePdfSizeBytes([{ ...page("a"), width: 3000, height: 4000 }], settings);
+    const twoPages = estimatePdfSizeBytes(
+      [
+        { ...page("a"), width: 3000, height: 4000 },
+        { ...page("b"), width: 3000, height: 4000 },
+      ],
+      settings,
+    );
+    const lowerQuality = estimatePdfSizeBytes(
+      [{ ...page("a"), width: 3000, height: 4000 }],
+      { paperSize: "A4", jpegQuality: 0.7 },
+    );
+
+    expect(twoPages).toBeGreaterThan(onePage);
+    expect(lowerQuality).toBeLessThan(onePage);
   });
 
   it("rejects an empty generated PDF instead of showing success", async () => {
     await expect(
       exportPdf([page("a")], { paperSize: "A4", jpegQuality: 0.85 }, {
         createPdf: async () => ({ filePath: "/tmp/out.pdf" }),
-        getExportDirectory: async () => "/tmp/",
-        persistPdf: async () => "file:///tmp/document.pdf",
-        getFileSize: async () => 0,
+        getTempExportDirectory: async () => "/cache/ImageToPDF/temp/",
+        manipulate: async (uri) => ({ uri: `file:///cache/${uri.split("/").pop()}` }),
+        persistPdf: async () => "file:///cache/ImageToPDF/temp/document.pdf",
+        getFileSize: async (uri) => (uri.includes("document.pdf") ? 0 : 2048),
       }),
     ).rejects.toThrow("PDF file is empty");
+  });
+});
+
+describe("export image sizing", () => {
+  it("downscales very large photos while keeping aspect ratio", () => {
+    expect(fitImageForExport(4000, 3000, 0)).toEqual({ width: 2048, height: 1536 });
+    expect(fitImageForExport(1200, 900, 0)).toEqual({ width: 1200, height: 900 });
+  });
+
+  it("maps app paper sizes to native PDF paper names", () => {
+    expect(mapPaperSizeForNative("LETTER")).toBe("Letter");
+    expect(mapPaperSizeForNative("A4")).toBe("A4");
+  });
+
+  it("normalizes export image URIs for the PDF module", () => {
+    expect(toPdfImageUri("/data/user/0/page.jpg")).toBe("file:///data/user/0/page.jpg");
+    expect(toPdfImageUri("file:///data/user/0/page.jpg")).toBe("file:///data/user/0/page.jpg");
   });
 });
 
@@ -102,6 +165,13 @@ describe("file paths", () => {
   it("shows a human-readable durable app location", () => {
     expect(displayExportPath("file:///data/files/ImageToPDF/report.pdf"))
       .toBe("App storage/ImageToPDF/report.pdf");
+    expect(displayExportPath("file:///cache/ImageToPDF/temp/report.pdf"))
+      .toBe("Not saved yet");
+  });
+
+  it("detects temporary export paths", () => {
+    expect(isTemporaryExportPath("file:///cache/ImageToPDF/temp/report.pdf")).toBe(true);
+    expect(isTemporaryExportPath("file:///data/files/ImageToPDF/report.pdf")).toBe(false);
   });
 
   it("creates a short filename using local date and time", () => {
@@ -188,6 +258,20 @@ describe("recents", () => {
   it("formats recent dates", () => {
     const today = new Date().toISOString();
     expect(formatRecentDate(today)).toMatch(/\d{1,2} \w{3} \d{4} · /);
+  });
+
+  it("formats recent metadata on one line", () => {
+    const meta = formatRecentMeta({
+      id: "1",
+      name: "scan.pdf",
+      path: "/scan.pdf",
+      sizeBytes: 2048,
+      pageCount: 3,
+      createdAt: "2026-08-01T12:00:00.000Z",
+    });
+    expect(meta).toContain("2.0 KB");
+    expect(meta).toContain("3 pages");
+    expect(meta).toContain("·");
   });
 
   it("addRecent prepends and caps list", async () => {

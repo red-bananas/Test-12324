@@ -26,6 +26,7 @@ describe("Image to PDF smoke", () => {
     expect(screen.getByText("Gallery")).toBeTruthy();
     expect(screen.getByLabelText("Open camera")).toBeTruthy();
     expect(screen.getByLabelText("Pick from gallery")).toBeTruthy();
+    expect(screen.getByLabelText("Settings")).toBeTruthy();
     expect(screen.getByText(/Your exported PDFs appear here/)).toBeTruthy();
   });
 });

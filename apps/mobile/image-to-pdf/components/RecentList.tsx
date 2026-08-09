@@ -11,8 +11,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { formatFileSize } from "../lib/fs";
-import { formatRecentDate } from "../lib/recents";
+import { formatRecentMeta } from "../lib/recents";
 import { AppTheme, useAppTheme } from "../lib/theme";
 import type { RecentPdf } from "../lib/types";
 
@@ -77,11 +76,8 @@ export function RecentList({ items, onPress, onMenuAction, style, contentContain
               </View>
               <View style={styles.meta}>
                 <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
-                <Text style={styles.detail} numberOfLines={2}>
-                  {formatFileSize(item.sizeBytes)} · {item.pageCount} {item.pageCount === 1 ? "page" : "pages"}
-                </Text>
-                <Text style={styles.timestamp} numberOfLines={1}>
-                  {formatRecentDate(item.createdAt)}
+                <Text style={styles.detail} numberOfLines={1}>
+                  {formatRecentMeta(item)}
                 </Text>
               </View>
             </Pressable>
@@ -164,7 +160,7 @@ function createStyles(theme: AppTheme) {
     emptyText: { color: theme.textTertiary, fontSize: 12 },
     separator: { height: 1, backgroundColor: theme.border },
     row: {
-      minHeight: 72,
+      minHeight: 64,
       flexDirection: "row",
       alignItems: "center",
       gap: theme.space.xs,
@@ -187,7 +183,6 @@ function createStyles(theme: AppTheme) {
     meta: { flex: 1, gap: 2 },
     name: { ...theme.type.caption, color: theme.text, fontWeight: "700" },
     detail: { color: theme.textTertiary, fontSize: 11 },
-    timestamp: { color: theme.textTertiary, fontSize: 11 },
     menuButton: {
       width: 40,
       height: 40,

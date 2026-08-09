@@ -28,7 +28,18 @@ describe("settings", () => {
       paperSize: "LETTER",
       jpegQuality: 0.7,
       appearance: "system",
+      saveExportsAutomatically: false,
     });
+  });
+
+  it("persists system appearance explicitly", async () => {
+    await saveExportSettings({
+      paperSize: "A4",
+      jpegQuality: 0.85,
+      appearance: "system",
+    });
+
+    expect((await loadExportSettings()).appearance).toBe("system");
   });
 
   it("persists an explicit appearance", async () => {
@@ -36,9 +47,12 @@ describe("settings", () => {
       paperSize: "A4",
       jpegQuality: 0.85,
       appearance: "dark",
+      saveExportsAutomatically: true,
     });
 
-    expect((await loadExportSettings()).appearance).toBe("dark");
+    const loaded = await loadExportSettings();
+    expect(loaded.appearance).toBe("dark");
+    expect(loaded.saveExportsAutomatically).toBe(true);
   });
 });
 

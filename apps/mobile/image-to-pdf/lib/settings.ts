@@ -7,6 +7,7 @@ export const defaultExportSettings: ExportSettings = {
   paperSize: "A4",
   jpegQuality: 0.85,
   appearance: "system",
+  saveExportsAutomatically: false,
 };
 
 export async function loadExportSettings(): Promise<ExportSettings> {
@@ -15,7 +16,7 @@ export async function loadExportSettings(): Promise<ExportSettings> {
     if (!raw) return defaultExportSettings;
     const parsed = JSON.parse(raw) as Partial<ExportSettings>;
     const appearance =
-      parsed.appearance === "light" || parsed.appearance === "dark"
+      parsed.appearance === "light" || parsed.appearance === "dark" || parsed.appearance === "system"
         ? parsed.appearance
         : "system";
     return {
@@ -25,6 +26,7 @@ export async function loadExportSettings(): Promise<ExportSettings> {
           ? Math.min(1, Math.max(0.5, parsed.jpegQuality))
           : defaultExportSettings.jpegQuality,
       appearance,
+      saveExportsAutomatically: parsed.saveExportsAutomatically === true,
     };
   } catch {
     return defaultExportSettings;

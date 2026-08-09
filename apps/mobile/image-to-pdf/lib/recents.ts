@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { getFileSize } from "./fs";
+import { formatFileSize, getFileSize } from "./fs";
 import type { RecentPdf } from "./types";
 
 const STORAGE_KEY = "image-to-pdf:recents";
@@ -38,6 +38,10 @@ export async function addRecent(entry: RecentPdf): Promise<RecentPdf[]> {
   return next;
 }
 
+export async function clearRecents(): Promise<void> {
+  await AsyncStorage.removeItem(STORAGE_KEY);
+}
+
 export async function renameRecent(
   oldPath: string,
   next: { path: string; name: string },
@@ -67,4 +71,9 @@ export function formatRecentDate(iso: string): string {
     minute: "2-digit",
   });
   return `${datePart} · ${timePart}`;
+}
+
+export function formatRecentMeta(item: RecentPdf): string {
+  const pages = `${item.pageCount} ${item.pageCount === 1 ? "page" : "pages"}`;
+  return `${formatFileSize(item.sizeBytes)} · ${pages} · ${formatRecentDate(item.createdAt)}`;
 }

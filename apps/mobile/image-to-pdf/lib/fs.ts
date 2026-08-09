@@ -78,6 +78,45 @@ export async function getExportDirectory(): Promise<string> {
   return dir;
 }
 
+export async function getTempExportDirectory(): Promise<string> {
+  const FS = await loadFS();
+  const base = FS.cacheDirectory ?? FS.documentDirectory ?? "";
+  const dir = `${base}ImageToPDF/temp/`;
+  const info = await FS.getInfoAsync(dir);
+  if (!info.exists) {
+    await FS.makeDirectoryAsync(dir, { intermediates: true });
+  }
+  return dir;
+}
+
+export function isTemporaryExportPath(filePath: string): boolean {
+  const normalized = filePath.replace(/\\/g, "/");
+  return normalized.includes("/ImageToPDF/temp/");
+}
+
+export async function deleteIfExists(uri: string): Promise<void> {
+  try {
+    const FS = await loadFS();
+    const target = toFileUri(uri);
+    const info = await FS.getInfoAsync(target);
+    if (info.exists) {
+      await FS.deleteAsync(target, { idempotent: true });
+    }
+  } catch {
+    // Best-effort cleanup for cache files.
+  }
+}
+
+export async function savePdfToAppStorage(
+  sourcePath: string,
+  fileName?: string,
+): Promise<{ filePath: string; fileName: string }> {
+  const name = fileName ?? getUniquePdfName();
+  const exportDir = await getExportDirectory();
+  const filePath = await persistPdf(sourcePath, `${exportDir}${name}`);
+  return { filePath, fileName: name };
+}
+
 export function getUniquePdfName(): string {
   const now = new Date();
   const part = (value: number) => String(value).padStart(2, "0");
@@ -94,6 +133,35 @@ export function getUniquePdfName(): string {
 }
 
 export function displayExportPath(filePath: string): string {
+  if (isTemporaryExportPath(filePath)) {
+    return "Not saved yet";
+  }
   const fileName = filePath.split("/").filter(Boolean).at(-1);
   return fileName ? `App storage/ImageToPDF/${fileName}` : "App storage/ImageToPDF";
+}
+
+export async function listSavedPdfFiles(): Promise<string[]> {
+  const FS = await loadFS();
+  const dir = await getExportDirectory();
+  const info = await FS.getInfoAsync(dir);
+  if (!info.exists) return [];
+  const entries = await FS.readDirectoryAsync(dir);
+  return entries
+    .filter((name) => name.toLowerCase().endsWith(".pdf"))
+    .map((name) => `${dir}${name}`);
+}
+
+export async function getSavedPdfsStorageBytes(): Promise<number> {
+  const files = await listSavedPdfFiles();
+  let total = 0;
+  for (const filePath of files) {
+    total += await getFileSize(filePath);
+  }
+  return total;
+}
+
+export async function clearSavedPdfs(): Promise<number> {
+  const files = await listSavedPdfFiles();
+  await Promise.all(files.map((filePath) => deleteIfExists(filePath)));
+  return files.length;
 }

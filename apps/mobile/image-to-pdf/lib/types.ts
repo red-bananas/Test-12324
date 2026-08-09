@@ -31,6 +31,8 @@ export type ExportSettings = {
   paperSize: PaperSize;
   jpegQuality: number;
   appearance?: AppearancePreference;
+  /** When true, Create persists to app storage and adds to Recents immediately. */
+  saveExportsAutomatically?: boolean;
 };
 
 export type ExportResult = {
@@ -38,4 +40,6 @@ export type ExportResult = {
   fileName: string;
   sizeBytes: number;
   pageCount: number;
+  /** False when the PDF lives in cache and still needs an explicit Save action. */
+  saved: boolean;
 };

@@ -171,11 +171,13 @@ export function IconToolButton({
   label,
   onPress,
   danger,
+  active,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   onPress: () => void;
   danger?: boolean;
+  active?: boolean;
 }) {
   const { theme } = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -185,10 +187,13 @@ export function IconToolButton({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
-      style={({ pressed }) => [styles.tool, pressed && styles.pressed]}
+      accessibilityState={{ selected: !!active }}
+      style={({ pressed }) => [styles.tool, active && styles.toolActive, pressed && styles.pressed]}
     >
       <Ionicons name={icon} size={21} color={color} />
-      <Text style={[styles.toolLabel, danger && { color: theme.danger }]}>{label}</Text>
+      <Text style={[styles.toolLabel, danger && { color: theme.danger }, active && styles.toolLabelActive]}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -282,8 +287,16 @@ function createStyles(theme: AppTheme) {
       alignItems: "center",
       justifyContent: "center",
       gap: 5,
+      borderRadius: theme.radius.md,
+      borderWidth: 1,
+      borderColor: "transparent",
+    },
+    toolActive: {
+      backgroundColor: theme.accentMuted,
+      borderColor: theme.accentBright,
     },
     toolLabel: { color: theme.textSecondary, fontSize: 11, fontWeight: "600" },
+    toolLabelActive: { color: theme.text },
     pressed: { opacity: 0.72 },
     disabled: { opacity: 0.4, shadowOpacity: 0, elevation: 0 },
   });

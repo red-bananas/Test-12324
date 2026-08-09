@@ -58,9 +58,9 @@ function DraggablePage({
           dragX.setValue(gesture.dx);
           const from = liveIndexRef.current;
           let to = from;
-          if (gesture.dx > THUMB_SPAN * 0.55 && from < pageCount - 1) {
+          if (gesture.dx > THUMB_SPAN * 0.45 && from < pageCount - 1) {
             to = from + 1;
-          } else if (gesture.dx < -THUMB_SPAN * 0.55 && from > 0) {
+          } else if (gesture.dx < -THUMB_SPAN * 0.45 && from > 0) {
             to = from - 1;
           }
           if (to === from) return;
@@ -100,7 +100,7 @@ function DraggablePage({
           setDragging(true);
           onSelect(index);
         }}
-        delayLongPress={180}
+        delayLongPress={120}
         accessibilityRole="button"
         accessibilityLabel={`Page ${index + 1}. Hold and drag to reorder.`}
         accessibilityState={{ selected }}
@@ -142,6 +142,13 @@ export function PageStrip({
 }) {
   const { theme } = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const scrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    const offset = Math.max(0, selectedIndex * THUMB_SPAN - 80);
+    scrollRef.current?.scrollTo({ x: offset, animated: true });
+  }, [selectedIndex]);
+
   return (
     <View style={styles.wrap}>
       <View style={styles.heading}>
@@ -158,7 +165,12 @@ export function PageStrip({
           </Pressable>
         ) : null}
       </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.strip}>
+      <ScrollView
+        ref={scrollRef}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.strip}
+      >
         {pages.map((page, index) => (
           <DraggablePage
             key={page.id}

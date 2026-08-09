@@ -10,27 +10,30 @@ export function ScreenHeader({
   subtitle,
   onBack,
   backLabel = "Back",
+  backText,
   rightSlot,
 }: {
   title: string;
   subtitle?: string;
   onBack?: () => void;
   backLabel?: string;
+  backText?: string;
   rightSlot?: ReactNode;
 }) {
   const { theme } = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   return (
     <View style={styles.wrap}>
-      <View style={styles.side}>
+      <View style={[styles.side, backText ? styles.sideWide : null]}>
         {onBack ? (
           <Pressable
             onPress={onBack}
             accessibilityRole="button"
             accessibilityLabel={backLabel}
-            style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
+            style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
           >
             <Ionicons name="arrow-back" size={21} color={theme.text} />
+            {backText ? <Text style={styles.backText}>{backText}</Text> : null}
           </Pressable>
         ) : (
           <View style={styles.iconButton} />
@@ -65,6 +68,21 @@ function createStyles(theme: AppTheme) {
       flexShrink: 0,
       minHeight: 44,
       justifyContent: "center",
+    },
+    sideWide: {
+      width: SIDE_WIDTH + 28,
+    },
+    backButton: {
+      minHeight: 44,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 2,
+      paddingRight: 4,
+    },
+    backText: {
+      color: theme.text,
+      fontSize: 14,
+      fontWeight: "700",
     },
     rightInner: {
       width: "100%",

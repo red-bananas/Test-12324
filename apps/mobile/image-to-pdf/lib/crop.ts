@@ -59,11 +59,16 @@ export function resizeCrop(
 }
 
 export function cropRectToPixels(rect: CropRect, imageWidth: number, imageHeight: number) {
-  const originX = Math.round(rect.x * imageWidth);
-  const originY = Math.round(rect.y * imageHeight);
-  const width = Math.max(1, Math.min(imageWidth - originX, Math.round(rect.width * imageWidth)));
-  const height = Math.max(1, Math.min(imageHeight - originY, Math.round(rect.height * imageHeight)));
-  return { originX, originY, width, height };
+  const originX = Math.max(0, Math.min(imageWidth - 1, Math.floor(rect.x * imageWidth)));
+  const originY = Math.max(0, Math.min(imageHeight - 1, Math.floor(rect.y * imageHeight)));
+  const endX = Math.max(originX + 1, Math.min(imageWidth, Math.ceil((rect.x + rect.width) * imageWidth)));
+  const endY = Math.max(originY + 1, Math.min(imageHeight, Math.ceil((rect.y + rect.height) * imageHeight)));
+  return {
+    originX,
+    originY,
+    width: endX - originX,
+    height: endY - originY,
+  };
 }
 
 export function isFullCrop(rect: CropRect): boolean {

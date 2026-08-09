@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   BackHandler,
   Image,
+  PanResponder,
   Pressable,
   StyleSheet,
   Text,
@@ -19,6 +20,7 @@ import { triggerSuccessHaptic, triggerTapHaptic } from "../lib/haptics";
 import { deletePage, reorderPages, rotatePage, shouldWarnLargeDoc } from "../lib/pages";
 import { pickImagesFromGallery, warmGalleryPicker } from "../lib/picker";
 import { exportPdf } from "../lib/pdf";
+import { deleteIfExists, savePdfToAppStorage } from "../lib/fs";
 import { addRecent } from "../lib/recents";
 import { loadExportSettings } from "../lib/settings";
 import { clearSession, getSessionPages, setSessionPages } from "../lib/session";
@@ -35,6 +37,10 @@ export default function EditorScreen() {
   const [pages, setPages] = useState<PdfPage[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [exporting, setExporting] = useState(false);
+  const selectedIndexRef = useRef(selectedIndex);
+  const pageCountRef = useRef(pages.length);
+  selectedIndexRef.current = selectedIndex;
+  pageCountRef.current = pages.length;
 
   const leaveEditor = useCallback(() => {
     clearSession();
@@ -117,7 +123,8 @@ export default function EditorScreen() {
 
   const onDelete = () => {
     if (pages.length <= 1) {
-      showMessage("Keep at least one page");
+      clearSession();
+      router.replace("/");
       return;
     }
     confirm({
@@ -133,15 +140,28 @@ export default function EditorScreen() {
     const currentSettings = await loadExportSettings();
     setExporting(true);
     try {
-      const result = await exportPdf(pages, currentSettings);
-      await addRecent({
-        id: result.fileName,
-        name: result.fileName,
-        path: result.filePath,
-        sizeBytes: result.sizeBytes,
-        pageCount: result.pageCount,
-        createdAt: new Date().toISOString(),
-      });
+      let result = await exportPdf(pages, currentSettings);
+      if (currentSettings.saveExportsAutomatically) {
+        const previousPath = result.filePath;
+        const stored = await savePdfToAppStorage(previousPath, result.fileName);
+        if (previousPath !== stored.filePath) {
+          await deleteIfExists(previousPath);
+        }
+        await addRecent({
+          id: stored.fileName,
+          name: stored.fileName,
+          path: stored.filePath,
+          sizeBytes: result.sizeBytes,
+          pageCount: result.pageCount,
+          createdAt: new Date().toISOString(),
+        });
+        result = {
+          ...result,
+          filePath: stored.filePath,
+          fileName: stored.fileName,
+          saved: true,
+        };
+      }
       await triggerSuccessHaptic();
       router.replace({
         pathname: "/success",
@@ -150,6 +170,7 @@ export default function EditorScreen() {
           path: result.filePath,
           sizeBytes: String(result.sizeBytes),
           pageCount: String(result.pageCount),
+          saved: result.saved ? "1" : "0",
         },
       });
     } catch (error) {
@@ -180,16 +201,35 @@ export default function EditorScreen() {
   };
 
   const current = pages[selectedIndex];
+  const editorSubtitle = `${pages.length} ${pages.length === 1 ? "page" : "pages"}`;
+
+  const previewSwipe = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, gesture) =>
+          Math.abs(gesture.dx) > Math.abs(gesture.dy) && Math.abs(gesture.dx) > 8,
+        onMoveShouldSetPanResponderCapture: (_, gesture) =>
+          Math.abs(gesture.dx) > Math.abs(gesture.dy) && Math.abs(gesture.dx) > 8,
+        onPanResponderRelease: (_, gesture) => {
+          const index = selectedIndexRef.current;
+          const count = pageCountRef.current;
+          if (gesture.dx < -16 && index < count - 1) {
+            void triggerTapHaptic();
+            setSelectedIndex(index + 1);
+          } else if (gesture.dx > 16 && index > 0) {
+            void triggerTapHaptic();
+            setSelectedIndex(index - 1);
+          }
+        },
+      }),
+    [],
+  );
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + theme.space.xs, paddingBottom: insets.bottom + theme.space.md }]}>
       <ScreenHeader
         title="Edit document"
-        subtitle={
-          e2e === "1"
-            ? `${pages.length} pages`
-            : `${pages.length} ${pages.length === 1 ? "page" : "pages"}`
-        }
+        subtitle={editorSubtitle}
         onBack={leaveEditor}
         rightSlot={
           <Pressable
@@ -217,8 +257,13 @@ export default function EditorScreen() {
       />
 
       {current ? (
-        <View style={styles.previewStage}>
+        <View
+          style={styles.previewStage}
+          accessibilityLabel={`Page ${selectedIndex + 1} of ${pages.length}. Swipe left or right to change page.`}
+          {...previewSwipe.panHandlers}
+        >
           <Image
+            key={current.uri}
             source={{ uri: current.uri }}
             style={[styles.preview, current.rotation % 180 === 90 && styles.previewRotated]}
             resizeMode="contain"
