@@ -1,14 +1,20 @@
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { palette } from "../game/colors";
+import { DISPLAY_NAME } from "../game/monetization";
+import type { UndoButtonState } from "../game/undoUi";
 import { AnimatedScore } from "./AnimatedScore";
+import { UndoButton } from "./UndoButton";
 
 interface ScoreHeaderProps {
   score: number;
   best: number;
   onNewGame: () => void;
-  onUndo: () => void;
+  onUndoPress: () => void;
   onOpenSettings: () => void;
-  canUndo: boolean;
+  undoState: UndoButtonState;
+  undoPending: boolean;
   reduceMotion: boolean;
   isNewBest: boolean;
 }
@@ -17,27 +23,27 @@ export function ScoreHeader({
   score,
   best,
   onNewGame,
-  onUndo,
+  onUndoPress,
   onOpenSettings,
-  canUndo,
+  undoState,
+  undoPending,
   reduceMotion,
   isNewBest,
 }: ScoreHeaderProps) {
   return (
     <View style={styles.container}>
       <View style={styles.topRow}>
-        <View>
-          <Text accessibilityRole="header" style={styles.title}>
-            Tile Merge
-          </Text>
-        </View>
+        <Text accessibilityRole="header" style={styles.title}>
+          {DISPLAY_NAME}
+        </Text>
         <Pressable
           accessibilityLabel="Open settings"
           accessibilityRole="button"
+          hitSlop={8}
           onPress={onOpenSettings}
-          style={styles.settingsButton}
+          style={({ pressed }) => [styles.settingsButton, pressed && styles.settingsPressed]}
         >
-          <Text style={styles.settingsText}>Settings</Text>
+          <Ionicons color={palette.textMuted} name="settings-outline" size={22} />
         </Pressable>
       </View>
 
@@ -52,23 +58,18 @@ export function ScoreHeader({
       </View>
 
       <View style={styles.actions}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Undo last move"
-          accessibilityState={{ disabled: !canUndo }}
-          disabled={!canUndo}
-          onPress={onUndo}
-          style={[styles.button, !canUndo && styles.buttonDisabled]}
-        >
-          <Text style={styles.buttonText}>Undo</Text>
-        </Pressable>
+        <UndoButton onPress={onUndoPress} pending={undoPending} state={undoState} />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Start new game"
           onPress={onNewGame}
-          style={[styles.button, styles.buttonPrimary]}
+          style={({ pressed }) => [
+            styles.newGameButton,
+            pressed && styles.newGamePressed,
+          ]}
         >
-          <Text style={[styles.buttonText, styles.buttonPrimaryText]}>New game</Text>
+          <FontAwesome color="#1c1b22" name="refresh" size={18} />
+          <Text style={styles.newGameText}>New game</Text>
         </Pressable>
       </View>
     </View>
@@ -92,15 +93,15 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   settingsButton: {
+    alignItems: "center",
     backgroundColor: palette.board,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    borderRadius: 12,
+    height: 44,
+    justifyContent: "center",
+    width: 44,
   },
-  settingsText: {
-    color: palette.textMuted,
-    fontSize: 13,
-    fontWeight: "700",
+  settingsPressed: {
+    opacity: 0.85,
   },
   scoreRow: {
     flexDirection: "row",
@@ -110,26 +111,25 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 10,
   },
-  button: {
-    backgroundColor: palette.board,
-    borderRadius: 10,
-    flex: 1,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-  },
-  buttonPrimary: {
+  newGameButton: {
+    alignItems: "center",
     backgroundColor: palette.accent,
+    borderRadius: 12,
+    flex: 1.15,
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "center",
+    minHeight: 48,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
-  buttonDisabled: {
-    opacity: 0.45,
+  newGamePressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.98 }],
   },
-  buttonText: {
-    color: palette.textPrimary,
-    fontSize: 15,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-  buttonPrimaryText: {
+  newGameText: {
     color: "#1c1b22",
+    fontSize: 15,
+    fontWeight: "800",
   },
 });

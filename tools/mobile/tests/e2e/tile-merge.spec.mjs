@@ -15,6 +15,10 @@ async function dismissNewGameDialogIfOpen(page) {
   }
 }
 
+function undoButton(page) {
+  return page.getByRole('button', { name: /Undo/ });
+}
+
 test.describe('Tile Merge web smoke', () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
@@ -34,10 +38,11 @@ test.describe('Tile Merge web smoke', () => {
   });
 
   test('loads game UI', async ({ page }) => {
-    await expect(page.getByText('Tile Merge')).toBeVisible();
+    await expect(page.getByText('Merge Tiles')).toBeVisible();
     await expect(page.getByText('SCORE')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Start new game' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Open settings' })).toBeVisible();
+    await expect(undoButton(page)).toBeVisible();
   });
 
   test('keyboard move does not crash (haptics guarded on web)', async ({ page }) => {
@@ -71,7 +76,7 @@ test.describe('Tile Merge web smoke', () => {
     await page.keyboard.press('ArrowLeft');
     await page.waitForTimeout(300);
 
-    const undo = page.getByRole('button', { name: 'Undo last move' });
+    const undo = undoButton(page);
     if (await undo.isEnabled()) {
       await page.getByRole('button', { name: 'Start new game' }).click();
       const confirm = page.getByRole('button', { name: 'Confirm new game' });
@@ -121,7 +126,7 @@ test.describe('Tile Merge onboarding', () => {
     await page.keyboard.press('ArrowLeft');
     await page.waitForTimeout(300);
 
-    const undo = page.getByRole('button', { name: 'Undo last move' });
+    const undo = undoButton(page);
     await expect(undo).toBeDisabled();
   });
 });

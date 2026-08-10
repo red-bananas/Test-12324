@@ -14,6 +14,7 @@ CWS_PROMO = (440, 280)
 CWS_ICON = (128, 128)
 BG = (26, 26, 26)
 FORMATKIT_BG = (13, 17, 23)
+FILE_INFO_BG = (13, 17, 23)
 FORMATKIT_JPEG_QUALITY = 96
 RESAMPLE = Image.Resampling.LANCZOS
 
@@ -329,6 +330,110 @@ def build_formatkit(root: Path) -> None:
     print(f"OK manifest {manifest.relative_to(root)}")
 
 
+def file_info_store_icon(ext_dir: Path) -> Image.Image:
+    """Use the packaged 128 icon, flattened onto the brand background."""
+    candidates = [
+        ext_dir / "store/source/logo-icon-mark.png",
+        ext_dir / "icons/png/icon128.png",
+    ]
+    for path in candidates:
+        if not path.is_file():
+            continue
+        img = Image.open(path).convert("RGBA")
+        if img.width != img.height:
+            side = min(img.size)
+            left = (img.width - side) // 2
+            top = (img.height - side) // 2
+            img = img.crop((left, top, left + side, top + side))
+        flat = Image.new("RGBA", img.size, FILE_INFO_BG + (255,))
+        flat.alpha_composite(img)
+        return flat.convert("RGB").resize(CWS_ICON, RESAMPLE)
+    raise SystemExit("No File Info icon source found (icons/png/icon128.png)")
+
+
+def build_file_info(root: Path) -> None:
+    slug = "file-info"
+    ext_dir = root / "apps" / "extensions" / slug
+    store_dir = ext_dir / "store"
+    source_dir = store_dir / "source"
+    upload_dir = store_dir / "upload"
+
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    source_dir.mkdir(parents=True, exist_ok=True)
+
+    # Drop stale screenshot outputs so renamed/reordered shots never linger.
+    for stale in list(upload_dir.glob("screenshot-*.png")) + list(upload_dir.glob("screenshot-*.jpg")):
+        stale.unlink()
+
+    screenshots = [
+        ("screenshot-1-image-dimensions-source.png", "screenshot-1-image-dimensions"),
+        ("screenshot-2-image-exif-gps-source.png", "screenshot-2-image-exif-gps"),
+        ("screenshot-3-pdf-file-details-source.png", "screenshot-3-pdf-file-details"),
+        ("screenshot-4-video-resolution-source.png", "screenshot-4-video-resolution"),
+        ("screenshot-5-webpage-stats-source.png", "screenshot-5-webpage-stats"),
+    ]
+
+    for src_name, base_name in screenshots:
+        src = source_dir / src_name
+        if not src.is_file():
+            raise SystemExit(
+                f"Missing {src_name}. Run: node tools/extensions/capture-file-info-screenshots.mjs"
+            )
+        shot = pad_popup_screenshot(src, bg=FILE_INFO_BG)
+        save_cws_image(shot, upload_dir / base_name, jpeg_quality=FORMATKIT_JPEG_QUALITY)
+        print(f"OK screenshot {upload_dir / base_name}.png")
+
+    first_src = source_dir / screenshots[0][0]
+    promo = make_promo_from_popup_source(first_src, bg=FILE_INFO_BG)
+    save_cws_image(promo, upload_dir / "promo-small-440x280", jpeg_quality=FORMATKIT_JPEG_QUALITY)
+    print(f"OK promo {upload_dir / 'promo-small-440x280'}.png")
+
+    icon = file_info_store_icon(ext_dir)
+    save_cws_image(icon, upload_dir / "store-icon-128x128", jpeg_quality=FORMATKIT_JPEG_QUALITY)
+    print(f"OK icon {upload_dir / 'store-icon-128x128'}.png")
+
+    for path in sorted(upload_dir.glob("*.png")):
+        kind = (
+            "screenshot"
+            if path.name.startswith("screenshot")
+            else "promo"
+            if path.name.startswith("promo")
+            else "store-icon"
+        )
+        assert_cws_file(
+            path,
+            {"screenshot": CWS_SCREENSHOT, "promo": CWS_PROMO, "store-icon": CWS_ICON}[kind],
+        )
+
+    manifest = upload_dir / "UPLOAD-THESE.txt"
+    manifest.write_text(
+        "\n".join(
+            [
+                "Upload ONLY files from this folder (store/upload/).",
+                "",
+                "Screenshots (1280 x 800) — upload in this order:",
+                "  screenshot-1-image-dimensions.jpg   (or .png)",
+                "  screenshot-2-image-exif-gps.jpg     (or .png)",
+                "  screenshot-3-pdf-file-details.jpg   (or .png)",
+                "  screenshot-4-video-resolution.jpg   (or .png)",
+                "  screenshot-5-webpage-stats.jpg      (or .png)",
+                "",
+                "Small promo tile (440 x 280):",
+                "  promo-small-440x280.jpg             (or .png)",
+                "",
+                "Store icon (128 x 128):",
+                "  store-icon-128x128.jpg              (or .png)",
+                "",
+                "Recapture popup shots:",
+                "  node tools/extensions/capture-file-info-screenshots.mjs",
+                "  python tools/extensions/prepare-store-images.py file-info",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    print(f"OK manifest {manifest.relative_to(root)}")
+
+
 def main() -> None:
     root = Path(__file__).resolve().parents[2]
     parser = argparse.ArgumentParser(description=__doc__)
@@ -339,6 +444,8 @@ def main() -> None:
         build_utc_clock_pro(root)
     elif args.slug == "formatkit":
         build_formatkit(root)
+    elif args.slug == "file-info":
+        build_file_info(root)
     else:
         raise SystemExit(f"No store image mapping for {args.slug!r}")
 

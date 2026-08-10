@@ -1,0 +1,9 @@
+{
+  "host": "192.168.0.104",
+  "port": 41627,
+  "metroPort": 8081,
+  "package": "app.autoapp.imagetopdf",
+  "activity": ".MainActivity",
+  "watchIntervalSeconds": 20,
+  "screenTimeoutMs": 1800000
+}

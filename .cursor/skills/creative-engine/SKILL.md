@@ -13,7 +13,7 @@ description: >-
 
 A human designer only holds a few thoughts at once. The agent's edge is to **think wider and ahead** — so on every step, don't just execute the literal ask. Surface a better idea, then prove or kill it fast.
 
-Pair with [`product-builder`](../product-builder/SKILL.md) (research/scope), [`monetization`](../monetization/SKILL.md) (revenue lens), and [`ui-ux-pro-max`](../ui-ux-pro-max/SKILL.md) (craft). Stay inside scope discipline — see Guardrails.
+Pair with [`product-builder`](../product-builder/SKILL.md) (research/scope), [`monetization`](../monetization/SKILL.md) (revenue lens), and a mock-first design review (`visualize`, or `figma-generate-design` when Figma is requested). Stay inside scope discipline — see Guardrails.
 
 ## The mindset (run on every step)
 

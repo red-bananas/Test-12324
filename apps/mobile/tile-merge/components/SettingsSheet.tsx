@@ -1,17 +1,32 @@
+import { useEffect } from "react";
 import {
+  BackHandler,
+  Linking,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Switch,
   Text,
   View,
 } from "react-native";
 import { palette } from "../game/colors";
+import {
+  APP_VERSION,
+  DISPLAY_NAME,
+  monetizationConfig,
+  PRIVACY_POLICY_URL,
+  SUPPORT_URL,
+} from "../game/monetization";
+import { soundEffectsAvailable } from "../game/sounds";
+import type { PlayerStats } from "../game/stats";
+import { todayKey } from "../game/stats";
 import type { GameSettings } from "../game/settings";
 
 interface SettingsSheetProps {
   visible: boolean;
   settings: GameSettings;
+  stats: PlayerStats;
   onChange: (settings: GameSettings) => void;
   onClose: () => void;
 }
@@ -44,16 +59,66 @@ function SettingRow({
   );
 }
 
+function LinkRow({
+  label,
+  onPress,
+}: {
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="link"
+      onPress={onPress}
+      style={styles.linkRow}
+    >
+      <Text style={styles.linkText}>{label}</Text>
+    </Pressable>
+  );
+}
+
 export function SettingsSheet({
   visible,
   settings,
+  stats,
   onChange,
   onClose,
 }: SettingsSheetProps) {
+  const phaseLabel =
+    monetizationConfig.phase === 1
+      ? "Free launch — no ads"
+      : "Optional rewarded ads for bonus undos";
+
+  const dailyBestToday =
+    stats.dailyBestDate === todayKey() ? stats.dailyBest : 0;
+
+  useEffect(() => {
+    if (!visible) {
+      return;
+    }
+
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      onClose();
+      return true;
+    });
+
+    return () => subscription.remove();
+  }, [onClose, visible]);
+
   return (
-    <Modal animationType="slide" transparent visible={visible}>
+    <Modal
+      animationType="slide"
+      onRequestClose={onClose}
+      transparent
+      visible={visible}
+    >
       <View style={styles.backdrop}>
         <View style={styles.sheet}>
+          <ScrollView
+            contentContainerStyle={styles.sheetContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
           <Text style={styles.title}>Settings</Text>
 
           <SettingRow
@@ -64,14 +129,16 @@ export function SettingsSheet({
             }
             value={settings.hapticsEnabled}
           />
-          <SettingRow
-            description="Merge sounds (coming soon)"
-            label="Sound effects"
-            onValueChange={(soundEnabled) =>
-              onChange({ ...settings, soundEnabled })
-            }
-            value={settings.soundEnabled}
-          />
+          {soundEffectsAvailable ? (
+            <SettingRow
+              description="Merge sounds"
+              label="Sound effects"
+              onValueChange={(soundEnabled) =>
+                onChange({ ...settings, soundEnabled })
+              }
+              value={settings.soundEnabled}
+            />
+          ) : null}
           <SettingRow
             description="Skip tile motion for accessibility"
             label="Reduce motion"
@@ -89,6 +156,53 @@ export function SettingsSheet({
             value={settings.confirmNewGame}
           />
 
+          <View style={styles.aboutSection}>
+            <Text style={styles.sectionTitle}>Your stats</Text>
+            <Text style={styles.aboutLine}>
+              Games played: {stats.gamesPlayed.toLocaleString()}
+            </Text>
+            <Text style={styles.aboutLine}>
+              Total merges: {stats.totalMerges.toLocaleString()}
+            </Text>
+            <Text style={styles.aboutLine}>
+              Highest tile: {stats.highestTileEver || "—"}
+            </Text>
+            <Text style={styles.aboutLine}>
+              Today&apos;s best: {dailyBestToday > 0 ? dailyBestToday.toLocaleString() : "—"}
+            </Text>
+            <Text style={styles.aboutLine}>
+              Streak: {stats.currentStreak} day{stats.currentStreak === 1 ? "" : "s"}
+              {stats.longestStreak > stats.currentStreak
+                ? ` (best ${stats.longestStreak})`
+                : ""}
+            </Text>
+          </View>
+
+          <View style={styles.aboutSection}>
+            <Text style={styles.sectionTitle}>About</Text>
+            <Text style={styles.aboutLine}>
+              {DISPLAY_NAME} v{APP_VERSION}
+            </Text>
+            <Text style={styles.aboutLine}>{phaseLabel}</Text>
+            <Text style={styles.aboutLine}>
+              Offline puzzle. Scores saved on device only.
+            </Text>
+            <LinkRow
+              label="Privacy policy"
+              onPress={() => {
+                void Linking.openURL(PRIVACY_POLICY_URL);
+              }}
+            />
+            {SUPPORT_URL ? (
+              <LinkRow
+                label="Support the developer"
+                onPress={() => {
+                  void Linking.openURL(SUPPORT_URL);
+                }}
+              />
+            ) : null}
+          </View>
+
           <Pressable
             accessibilityLabel="Done"
             accessibilityRole="button"
@@ -97,6 +211,7 @@ export function SettingsSheet({
           >
             <Text style={styles.doneText}>Done</Text>
           </Pressable>
+          </ScrollView>
         </View>
       </View>
     </Modal>
@@ -113,10 +228,14 @@ const styles = StyleSheet.create({
     backgroundColor: palette.background,
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
-    gap: 8,
+    maxHeight: "88%",
     paddingBottom: 28,
     paddingHorizontal: 20,
     paddingTop: 20,
+  },
+  sheetContent: {
+    gap: 8,
+    paddingBottom: 8,
   },
   title: {
     color: palette.textPrimary,
@@ -142,6 +261,31 @@ const styles = StyleSheet.create({
   rowDescription: {
     color: palette.textMuted,
     fontSize: 13,
+  },
+  aboutSection: {
+    borderTopColor: palette.board,
+    borderTopWidth: 1,
+    gap: 6,
+    marginTop: 8,
+    paddingTop: 12,
+  },
+  sectionTitle: {
+    color: palette.textPrimary,
+    fontSize: 16,
+    fontWeight: "800",
+  },
+  aboutLine: {
+    color: palette.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  linkRow: {
+    paddingVertical: 6,
+  },
+  linkText: {
+    color: palette.accentSoft,
+    fontSize: 14,
+    fontWeight: "600",
   },
   doneButton: {
     alignItems: "center",

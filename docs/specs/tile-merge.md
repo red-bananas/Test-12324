@@ -1,10 +1,12 @@
-# Product spec: Tile Merge
+# Product spec: Merge Tiles
 
 ## Overview
 
 | Field | Value |
 |-------|-------|
 | **Slug** | `tile-merge` |
+| **Store name** | Merge Tiles: Offline Puzzle |
+| **In-app name** | Merge Tiles |
 | **Lane** | `mobile` |
 | **Path** | `apps/mobile/tile-merge/` |
 | **Origin** | `manual` |
@@ -37,8 +39,8 @@ As a **casual player**, I want **to swipe tiles and merge numbers** so that **I 
 
 | Wedge | How we deliver it |
 |-------|-------------------|
-| Calm UX | No mid-game popups; ads deferred until post-launch |
-| Better UX | Undo, haptics on merge, readable tiles, dark theme |
+| Calm UX | No mid-game popups; rewarded ads opt-in only |
+| Better UX | Undo, haptics on merge, readable tiles, dark theme, local stats |
 
 ## Design notes
 
@@ -46,7 +48,15 @@ As a **casual player**, I want **to swipe tiles and merge numbers** so that **I 
 - **Primary action:** Swipe to move tiles
 - **Empty state:** N/A (board always has tiles after start)
 - **Error state:** Game over overlay with New Game
-- **Brand:** **Tile Merge** — warm charcoal + coral accent, not original 2048 colors
+- **Brand:** **Merge Tiles** — warm charcoal + coral accent, not original 2048 colors
+
+## Features (v1.1)
+
+1. Unified in-app brand (`DISPLAY_NAME`)
+2. Player stats: games played, merges, daily best, streak (local AsyncStorage)
+3. AdMob rewarded undo (opt-in, max 3 per game)
+4. Share score with Play Store URL
+5. Game-over new-best celebration
 
 ## Technical constraints
 
@@ -58,8 +68,13 @@ As a **casual player**, I want **to swipe tiles and merge numbers** so that **I 
 
 | Phase | Model |
 |-------|-------|
-| Phase 1 | Free, no ads (measure retention) |
-| Phase 2 | AdMob interstitial on game over; rewarded undo; remove-ads IAP |
+| Phase 1 | Free, no ads (shipped v1.0) |
+| Phase 2 (current) | AdMob rewarded undo only; max 3/game; no interstitials |
+| Phase 3 (backlog) | Remove-ads IAP; interstitials after D7 retention check |
+
+## Out of scope (v1.1)
+
+- Multiplayer, accounts, cloud save, interstitial ads, remove-ads IAP
 
 ## Success metrics (first 90 days)
 
@@ -72,12 +87,18 @@ As a **casual player**, I want **to swipe tiles and merge numbers** so that **I 
 
 ## Out of scope (v1)
 
-- Multiplayer, accounts, cloud save, IAP store, AdMob integration
+- Multiplayer, accounts, cloud save
 
 ## Ship checklist
 
 - [x] Spec approved
-- [ ] Code in `apps/mobile/tile-merge/`
-- [ ] Validation / tests green
-- [ ] Play Store listing draft
-- [ ] EAS internal APK build
+- [x] Code in `apps/mobile/tile-merge/`
+- [x] Validation / tests green
+- [x] Resume game on relaunch (local save)
+- [x] Play Store listing draft (`PLAY_STORE.md`)
+- [x] Privacy policy (`PRIVACY.md` + URL for Play Console)
+- [x] Mobile release CI (`mobile-release.yml` — tag `tile-merge@v*` → EAS build + internal submit)
+- [ ] GitHub secrets: `EXPO_TOKEN`, `GOOGLE_PLAY_SERVICE_ACCOUNT_KEY`
+- [ ] Play Console app + internal testers configured
+- [ ] EAS production AAB build (first run)
+- [ ] Play Store internal testing track live

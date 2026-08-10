@@ -29,7 +29,10 @@
     <div class="error hidden" id="error">
       <p class="error-title" id="errorTitle">Unable to analyze</p>
       <p class="error-hint" id="errorHint">Reload the page and try again.</p>
-      <button type="button" class="btn btn-secondary" id="retryBtn">Try again</button>
+      <div class="error-actions">
+        <button type="button" class="btn btn-primary hidden" id="enableFileAccessBtn">Enable local file access</button>
+        <button type="button" class="btn btn-secondary" id="retryBtn">Try again</button>
+      </div>
     </div>
 
     <main class="content hidden" id="content">
@@ -52,6 +55,14 @@
         <button type="button" class="btn btn-primary" id="downloadBtn">Download</button>
         <button type="button" class="btn btn-secondary" id="copyBtn">Copy all</button>
         <button type="button" class="btn btn-secondary" id="exportBtn">Save details</button>
+      </div>
+
+      <div class="code-snippets hidden" id="codeSnippets">
+        <span class="snippet-label">Copy</span>
+        <button type="button" class="btn btn-secondary chip-btn" id="copyUrlBtn">URL</button>
+        <button type="button" class="btn btn-secondary chip-btn" id="copyImgBtn">&lt;img&gt;</button>
+        <button type="button" class="btn btn-secondary chip-btn" id="copyMdBtn">Markdown</button>
+        <button type="button" class="btn btn-secondary chip-btn" id="copyCssBtn">CSS</button>
       </div>
 
       <section class="info-grid" id="detailsSection">
@@ -100,10 +111,30 @@
           <span class="value url" id="fileUrl" title="Click to copy">—</span>
         </div>
       </section>
+
+      <section class="exif-section hidden" id="exifSection">
+        <p class="section-title">Photo metadata</p>
+        <div class="info-grid">
+          <div class="info-row hidden" id="exifCameraRow">
+            <span class="label">Camera</span>
+            <span class="value" id="exifCamera">—</span>
+          </div>
+          <div class="info-row hidden" id="exifDateRow">
+            <span class="label">Taken</span>
+            <span class="value" id="exifDate">—</span>
+          </div>
+          <div class="info-row hidden" id="exifGpsRow">
+            <span class="label">GPS</span>
+            <span class="value" id="exifGps">—</span>
+          </div>
+        </div>
+        <p class="exif-warn hidden" id="exifGpsWarn" role="alert">⚠ This photo embeds GPS location. Strip metadata before sharing.</p>
+      </section>
     </main>
   </div>
 
   <script src="shared.js"></script>
+  <script src="exif.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

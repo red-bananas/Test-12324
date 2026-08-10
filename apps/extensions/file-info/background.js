@@ -23,6 +23,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
   if (info.menuItemId === MENU_COPY_DIMS && info.srcUrl) {
     try {
+      await ensureContentScript(tab.id);
       const response = await chrome.tabs.sendMessage(tab.id, {
         action: 'getImageDimensions',
         srcUrl: info.srcUrl
@@ -66,6 +67,17 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   return false;
 });
+
+async function ensureContentScript(tabId) {
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ['shared.js', 'content.js']
+    });
+  } catch {
+    /* already present, or page does not allow injection */
+  }
+}
 
 async function downloadFile(url, filename) {
   if (!url) throw new Error('No URL to download');

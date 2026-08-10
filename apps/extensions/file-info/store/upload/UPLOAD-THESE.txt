@@ -1,0 +1,18 @@
+Upload ONLY files from this folder (store/upload/).
+
+Screenshots (1280 x 800) — upload in this order:
+  screenshot-1-image-dimensions.jpg   (or .png)
+  screenshot-2-image-exif-gps.jpg     (or .png)
+  screenshot-3-pdf-file-details.jpg   (or .png)
+  screenshot-4-video-resolution.jpg   (or .png)
+  screenshot-5-webpage-stats.jpg      (or .png)
+
+Small promo tile (440 x 280):
+  promo-small-440x280.jpg             (or .png)
+
+Store icon (128 x 128):
+  store-icon-128x128.jpg              (or .png)
+
+Recapture popup shots:
+  node tools/extensions/capture-file-info-screenshots.mjs
+  python tools/extensions/prepare-store-images.py file-info

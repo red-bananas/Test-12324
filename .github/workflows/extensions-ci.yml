@@ -2,13 +2,13 @@ name: Extensions CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [master]
     paths:
       - "apps/extensions/**"
       - "tools/extensions/**"
       - ".github/workflows/extensions-ci.yml"
   pull_request:
-    branches: [main, master]
+    branches: [master]
     paths:
       - "apps/extensions/**"
       - "tools/extensions/**"

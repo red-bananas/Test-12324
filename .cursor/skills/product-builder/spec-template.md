@@ -7,11 +7,12 @@
 | Field | Value |
 |-------|-------|
 | **Slug** | `{slug}` |
-| **Lane** | `web` / `mobile` / `extensions` |
-| **Path** | `apps/{lane}/{slug}/` |
+| **Lane** | `mobile` (default) / `extensions` (maintenance) |
+| **Archetype** | `game` / `utility` |
+| **Path** | `apps/mobile/{slug}/` |
 | **Origin** | `manual` |
 | **Inspired by** | {competitor or category — not a trademark clone} |
-| **Research score** | {total}/30 |
+| **Research score** | {total}/35 |
 
 ## Job-to-be-done
 
@@ -38,12 +39,12 @@ As a **{user}**, I want **{action}** so that **{benefit}**.
 | Wedge | How we deliver it |
 |-------|-------------------|
 | {e.g. Privacy-first} | {concrete behavior} |
-| {e.g. LLM paste mode} | {concrete behavior} |
+| {e.g. Offline-first} | {concrete behavior} |
 
 ## Design notes
 
 - **Primary screen:** {what user sees first}
-- **Primary action:** {one main button/shortcut}
+- **Primary action:** {one main button/gesture}
 - **Empty state:** {copy when no input}
 - **Error state:** {friendly message}
 - **Brand:** distinct name `{ProductName}` — no competitor logos/colors/taglines
@@ -51,34 +52,52 @@ As a **{user}**, I want **{action}** so that **{benefit}**.
 ## Technical constraints
 
 - [ ] Client-only (no backend for v1)
-- [ ] MV3-compliant (extensions only)
-- [ ] Works offline after load (web/extension)
-- [ ] Tests pass (`validate.mjs` or `npm test`)
+- [ ] Offline after first launch
+- [ ] `npm run typecheck && npm run lint && npm test` pass
+- [ ] `npm run validate:mobile -- {slug}` pass
+- [ ] USB dev build tested (`npm run android`) before release
+
+## APK size budget
+
+| Target | Limit |
+|--------|-------|
+| Preview APK (EAS) | < 50 MB ideal; investigate if > 80 MB |
+| Heavy deps | Skia, video, large assets — justify in spec or cut |
+
+See [app-size-optimization](../app-size-optimization/SKILL.md).
 
 ## Monetization
 
-> Choose via the [monetization](../monetization/SKILL.md) decision tree.
+> Mobile: follow [mobile-ads-strategy](../mobile-ads-strategy/SKILL.md) + [monetization](../monetization/SKILL.md).
 
 | Field | Value |
 |-------|-------|
-| **Primary model** | {rewarded ads / freemium-SaaS / tip-ware} |
-| **Why** | {one line — fits the decision tree because…} |
-| **Moments of desire / value gates** | {e.g. undo, hint, continue / export, bulk, automation} |
-| **Free path** | {how a non-paying user still has a good experience} |
-| **Tech** | {AdMob / LemonSqueezy / ExtensionPay / store IAP — backend needed? y/n} |
+| **Primary model** | Rewarded ads (Phase 2) |
+| **Phase 1** | Core free, no ads — validate retention |
+| **Phase 2** | Opt-in rewarded at natural moments |
+| **Reward moments** | {e.g. undo, hint, bonus coins / export unlock} |
+| **Free path** | {how non-paying user still has good experience} |
+| **AdMob units** | Placeholder test IDs in dev; production IDs in `game/monetization.ts` only after human provides them |
 
 | Phase | Model |
 |-------|-------|
-| Phase 1 | {core + chosen model; honest $ target given expected reach} |
-| Phase 2 | {Remove-ads IAP / Pro tier / affiliate / scale} |
+| Phase 1 | {core gameplay/tool; $0 ads} |
+| Phase 2 | {rewarded placements; honest $ target given expected DAU} |
+
+## Device QA (human gate)
+
+- [ ] USB dev build on physical Android phone
+- [ ] Ads use test IDs until production build approved
+- [ ] Haptics, persistence, back button behave correctly
 
 ## Success metrics (first 90 days)
 
 | Metric | Target |
 |--------|--------|
-| {installs / visits / weekly active} | {number} |
-| {store rating / bounce rate} | {number} |
-| Revenue | {optional $ target} |
+| Installs | {number} |
+| DAU / retention D1 | {number} |
+| Store rating | {≥ 4.0} |
+| AdMob eCPM / revenue | {optional $ target} |
 
 ## Out of scope (v1)
 
@@ -86,16 +105,18 @@ As a **{user}**, I want **{action}** so that **{benefit}**.
 
 ## Future ideas (parked)
 
-> Promising ideas from the [creative-engine](../creative-engine/SKILL.md) pass that didn't make v1. Kept so they're remembered, not rebuilt from scratch.
+> Promising ideas from the [creative-engine](../creative-engine/SKILL.md) pass that didn't make v1.
 
 | Idea | Why parked | Revisit when |
 |------|-----------|--------------|
-| {e.g. Freeze a tile} | {scope / needs validation} | {after core ships / in AURA mode} |
+| {e.g. Freeze a tile} | {scope / needs validation} | {after core ships} |
 
 ## Ship checklist
 
 - [ ] Spec approved by user
-- [ ] Code in `apps/{lane}/{slug}/`
+- [ ] Code in `apps/mobile/{slug}/`
+- [ ] `PLAY_STORE.md` filled; `store/CREATIVES-BRIEF.md` started
 - [ ] Validation / tests green
-- [ ] Listing copy or landing page draft
-- [ ] Release tag or deploy notes
+- [ ] EAS preview APK on device
+- [ ] Human approves store submit
+- [ ] Release tag `{slug}@v{version}`

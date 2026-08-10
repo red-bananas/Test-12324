@@ -1,6 +1,10 @@
 slug: tile-merge
 lane: mobile
 origin: manual
-displayName: Tile Merge
+displayName: Merge Tiles
 androidPackage: app.autoapp.tilemerge
 iosBundleId: app.autoapp.tilemerge
+status: in-progress
+monetization: rewarded-ads-phase2
+store: google-play
+version: 1.1.0

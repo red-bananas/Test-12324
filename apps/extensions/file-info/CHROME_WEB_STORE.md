@@ -13,7 +13,7 @@ Copy these into the [Chrome Web Store Developer Dashboard](https://chrome.google
 | Field | Text |
 |---|---|
 | **Name** | File Info — Image Size, Dimensions, Aspect Ratio, File Details |
-| **Summary** (short) | Image size, width × height & aspect ratio in one click. Copy dimensions, download file, export metadata. PDF, video, audio, local. |
+| **Summary** (short, ≤132) | Image size, width × height & aspect ratio in one click. Copy dimensions or code, read EXIF, download & export. PDF, video, local. |
 | **Category** | Productivity |
 | **Language** | English |
 
@@ -72,53 +72,61 @@ PDF, video, audio, and local files — all in one popup.
 ```
 Open any image, PDF, video, audio file, or webpage in Chrome. Click File Info. See the details instantly—no DevTools, no guesswork.
 
-File Info shows width, height, file size, aspect ratio, and more for whatever is open in your current tab. Perfect for designers, developers, content teams, and anyone who checks image specs during the day.
+File Info shows width, height, file size, aspect ratio, and more for whatever is open in your current tab. Built for designers, developers, content teams, and anyone who checks image specs all day.
 
 ✨ WHAT YOU GET
 
 📐 Image dimensions (width × height)
-See exact pixel size for JPG, PNG, GIF, WebP, SVG, and other images—whether they open in a tab or load from a URL.
+Exact pixel size for JPG, PNG, GIF, WebP, SVG, and more—whether the image opens in a tab or loads from a URL.
 
 📏 Aspect ratio
-Get the ratio (like 16:9 or 4:3) calculated for you. Handy for banners, social posts, and responsive layouts.
+The ratio (16:9, 4:3, …) calculated for you. Handy for banners, social posts, and responsive layouts.
 
-💾 File size
-View human-readable size (KB, MB, GB) when the server allows it.
+💾 File size & type
+Human-readable size (KB, MB, GB) and MIME type when the server allows it.
 
-📋 One-click copy dimensions
-Copy width × height—or all file details—to your clipboard in one tap. Paste into tickets, specs, or chat.
+📋 One-click copy
+Copy width × height—or every detail—to your clipboard in one tap. Paste into tickets, specs, or chat.
 
-⬇️ Download file from URL
-Save the current file to your computer with one click when the source allows it.
+</> Copy as code
+Generate an <img> tag (with width/height baked in), a Markdown image, a CSS background, or just the URL—ready to paste into your project.
 
-📄 Export metadata as txt
-Download a plain-text summary of everything File Info found—great for records, QA, or sharing with teammates.
+🛰️ On-device EXIF for photos
+See camera make/model, capture date, and GPS location, parsed locally on your device. If a photo embeds GPS, File Info warns you before you share it.
 
-🎬 PDF, video, audio & local file:// support
-Works on direct file URLs and pages that embed media. Open a local file in Chrome (file://) and inspect it the same way.
+🎥 Video & audio
+Video resolution and duration, plus audio duration—read straight from the player.
+
+📄 PDFs, documents & archives
+PDFs, Office docs, ZIPs, and other downloads show file size and type at a glance.
+
+💻 Local files (file://)
+Open a file from your computer in Chrome and inspect it the same way—nothing is uploaded.
+
+⬇️ Download & export
+Save the current file from its URL, or export a plain-text summary of everything File Info found—great for records, QA, or sharing.
 
 🌐 Webpage stats
-On regular web pages, see title, domain, and counts of images and links on the page.
+On regular pages, see title, domain, and counts of images and links.
 
-🔒 Private by design
-• No account
-• No analytics or tracking
-• Analysis runs on the current tab only
-• Your files stay on your device
+🔒 PRIVATE BY DESIGN
+• No account, no analytics, no tracking
+• Nothing runs until you click the icon
+• Analysis happens on the current tab, on your device
+• Your files never leave your computer
 
-For web designers checking hero images, developers verifying assets, marketers auditing page weight, and anyone who asks “what size is this?” more than once a week.
+WHY THE PERMISSIONS (kept to a minimum)
+• activeTab — read the page you're on, only when you click the icon
+• scripting — run the analyzer in the current tab on demand (only after you click)
+• contextMenus — right-click "Copy image dimensions" / "Download image"
+• downloads — save the current file when you choose Download (no background fetching)
+• file:///* (optional) — inspect local files you open in Chrome; requested only if you enable file access
 
-KNOWN LIMITATIONS (honest)
-• File size may show as unavailable on some cross-origin URLs because of browser CORS rules—the site must allow the request.
+HONEST LIMITATIONS
+• File size may be unavailable on some cross-origin URLs because of browser CORS rules—the site must allow the request.
 • Very large remote files may not report size until fully accessible; local and same-origin files work best.
 • Download works for http(s) and data URLs; local file:// paths are analyzed but not re-downloaded through the browser.
-• Some embedded or dynamically loaded media may need a refresh after the page finishes loading.
-
-WHY WE ASK FOR PERMISSIONS
-• activeTab — read info from the page you have open when you click the icon
-• tabs — identify the current tab’s URL and file type
-• file:///* — inspect local files you open in Chrome
-• downloads — save a copy of the current file when you choose Download (only when you click; no background fetching)
+• Some dynamically loaded media may need a page refresh after the page finishes loading.
 ```
 
 ---
@@ -152,16 +160,17 @@ image size, image dimensions, width height, aspect ratio, pixel size, file size 
 
 ---
 
-## Release notes (v1.0)
+## Release notes (v1.2.0)
 
 ```
+• New: Copy as code — URL, <img> tag, Markdown, or CSS background in one tap
+• New: On-device EXIF for photos — camera, capture date, GPS, with a privacy warning
+• Privacy upgrade: removed broad site access. Runs only on click via activeTab + on-demand injection (no persistent content scripts, no <all_urls>)
+• Refreshed dark UI matching the suite, full keyboard navigation and reduced-motion support
 • Inspect images, PDFs, videos, audio, and local file:// pages
 • Show width × height, aspect ratio, file size, MIME type, and duration
-• One-click copy all file details or click path/URL to copy
-• Download file from URL when permitted
-• Export metadata as a plain-text file
+• Download file from URL and export metadata as a plain-text file
 • Webpage mode: title, domain, image count, link count
-• Clean popup UI with refresh and keyboard shortcuts (Ctrl+C, F5)
 ```
 
 ---
@@ -171,12 +180,13 @@ image size, image dimensions, width height, aspect ratio, pixel size, file size 
 ```
 Single purpose: display file and webpage metadata for the active tab.
 
-activeTab — analyze only the tab the user is viewing when they open the popup.
-tabs — resolve the active tab URL and communicate with the content script.
-file:///* — allow inspection of local files opened in the browser.
+activeTab — analyze only the tab the user is viewing, granted on the user's click.
+scripting — inject the analyzer into the active tab on demand (no persistent content scripts, no <all_urls>).
+contextMenus — provide right-click "Copy image dimensions" and "Download image".
 downloads — initiate a user-requested download of the current file URL only; no background or bulk downloading.
+file:///* — optional; requested only when the user enables file access to inspect local files.
 
-No remote servers, analytics, or user accounts. File analysis uses the page DOM, fetch/HEAD where CORS allows, and media element metadata. Download and export run only on explicit user action.
+No persistent host permissions, no remote servers, analytics, or user accounts. The extension runs nothing until the user clicks. File analysis uses the page DOM, fetch/HEAD where CORS allows, media element metadata, and on-device EXIF parsing. Download and export run only on explicit user action.
 ```
 
 ---
@@ -198,14 +208,14 @@ No remote servers, analytics, or user accounts. File analysis uses the page DOM,
 
 ## Automated publish (this repo)
 
-After merging to `main`, create a release tag:
+After merging to `master`, create a release tag:
 
 ```bash
-git tag file-info@v1.0
-git push origin file-info@v1.0
+git tag file-info@v1.2.0
+git push origin file-info@v1.2.0
 ```
 
-Or: **GitHub Actions → Release Extension →** `file-info` / `1.0`
+Or: **GitHub Actions → Release Extension →** `file-info` / `1.2.0`
 
 Requires GitHub secrets on **browser-extensions**:
 

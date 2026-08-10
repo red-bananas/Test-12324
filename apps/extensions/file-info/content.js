@@ -1,3 +1,7 @@
+(() => {
+if (typeof window !== 'undefined' && window.__fileInfoLoaded) return;
+if (typeof window !== 'undefined') window.__fileInfoLoaded = true;
+
 class FileInfoDetector {
   constructor() {
     this.fileInfo = null;
@@ -416,3 +420,4 @@ class FileInfoDetector {
 }
 
 new FileInfoDetector();
+})();

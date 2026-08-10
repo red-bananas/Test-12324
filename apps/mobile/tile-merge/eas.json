@@ -6,11 +6,29 @@
   "build": {
     "preview": {
       "distribution": "internal",
-      "android": { "buildType": "apk" }
+      "env": {
+        "EXPO_PUBLIC_USE_PRODUCTION_ADS": "false"
+      },
+      "android": {
+        "buildType": "apk"
+      }
     },
     "production": {
-      "android": { "buildType": "app-bundle" }
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_USE_PRODUCTION_ADS": "true"
+      },
+      "android": {
+        "buildType": "app-bundle"
+      }
     }
   },
-  "submit": { "production": {} }
+  "submit": {
+    "production": {
+      "android": {
+        "track": "production",
+        "releaseStatus": "completed"
+      }
+    }
+  }
 }

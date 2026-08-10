@@ -5,6 +5,7 @@ __pycache__/
 venv/
 .env
 .env.local
+tools/mobile/adb-device.local.json
 data/*.db
 data/*.sqlite
 data/*.sqlite3

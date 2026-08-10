@@ -16,15 +16,24 @@
     "zip:file-info": "node tools/extensions/zip.mjs file-info",
     "zip:formatkit": "node tools/extensions/zip.mjs formatkit",
     "screenshots:formatkit": "node tools/extensions/capture-formatkit-screenshots.mjs && python tools/extensions/prepare-store-images.py formatkit",
+    "screenshots:file-info": "node tools/extensions/capture-file-info-screenshots.mjs && python tools/extensions/prepare-store-images.py file-info",
     "logo:formatkit": "python tools/extensions/apply-formatkit-logo.py",
+    "logo:file-info": "python tools/extensions/apply-file-info-logo.py",
     "gh:install": "powershell -ExecutionPolicy Bypass -File tools/extensions/install-gh.ps1",
     "gh:auth": "powershell -ExecutionPolicy Bypass -File tools/extensions/gh-auth.ps1",
     "gh:status": "powershell -ExecutionPolicy Bypass -File tools/extensions/github-status.ps1",
     "release:utc": "powershell -ExecutionPolicy Bypass -File tools/extensions/github-release.ps1 -Extension utc-clock-pro -Version 2.0.3 -Watch",
     "release:formatkit": "powershell -ExecutionPolicy Bypass -File tools/extensions/github-release.ps1 -Extension formatkit -Version 1.0.0 -Watch",
+    "release:file-info": "powershell -ExecutionPolicy Bypass -File tools/extensions/github-release.ps1 -Extension file-info -Version 1.2.0 -Watch",
+    "screenshots:tile-merge": "node tools/mobile/capture-tile-merge-screenshots.mjs && python tools/mobile/prepare-play-store-images.py tile-merge",
+    "icons:tile-merge": "python tools/mobile/generate-tile-merge-icons.py",
+    "release:tile-merge": "powershell -ExecutionPolicy Bypass -File tools/mobile/github-release.ps1 -App tile-merge",
     "validate:mobile": "node tools/mobile/validate.mjs",
     "test:mobile": "node tools/mobile/test.mjs",
-    "test:e2e:mobile": "playwright test --config tools/mobile/playwright.config.mjs"
+    "test:e2e:mobile": "playwright test --config tools/mobile/playwright.config.mjs",
+    "dev:adb:connect": "powershell -ExecutionPolicy Bypass -File tools/mobile/adb-connect.ps1 -Launch",
+    "dev:adb:watch": "powershell -ExecutionPolicy Bypass -File tools/mobile/adb-watch.ps1",
+    "dev:reload:image-to-pdf": "powershell -ExecutionPolicy Bypass -File tools/mobile/dev-reload-image-to-pdf.ps1"
   },
   "devDependencies": {
     "@playwright/test": "1.55.1"

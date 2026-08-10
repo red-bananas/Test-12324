@@ -11,11 +11,26 @@ import { OnboardingOverlay } from "../components/OnboardingOverlay";
 import { ScoreHeader } from "../components/ScoreHeader";
 import { ScorePop } from "../components/ScorePop";
 import { SettingsSheet } from "../components/SettingsSheet";
+import { initRewardedAds, preloadRewardedAd } from "../game/ads/rewarded";
 import { palette } from "../game/colors";
+import { monetizationConfig } from "../game/monetization";
+import {
+  defaultStats,
+  loadStats,
+  recordGameCompleted,
+  recordMerge,
+  recordPlayDay,
+  saveStats,
+  type PlayerStats,
+} from "../game/stats";
 import {
   loadBestScore,
   saveBestScore,
 } from "../game/storage";
+import {
+  loadSavedSession,
+  saveSavedSession,
+} from "../game/savedSession";
 import {
   loadLastRunScore,
   loadSettings,
@@ -40,9 +55,16 @@ export default function Home() {
     move,
     newGame,
     undo,
+    rewardedUndo,
+    requestUndo,
     continuePlaying,
     hydrateBest,
-    canUndo,
+    restoreSession,
+    resumeUndosRemaining,
+    undoState,
+    rewardedUndoPending,
+    moveCount,
+    highestTile,
     moveFeedback,
     clearMoveFeedback,
     settings,
@@ -60,26 +82,47 @@ export default function Home() {
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [appReady, setAppReady] = useState(false);
+  const [playerStats, setPlayerStats] = useState<PlayerStats>(defaultStats);
   const previousStatus = useRef(game.status);
+
+  useEffect(() => {
+    if (monetizationConfig.phase === 2) {
+      void initRewardedAds().then(() => preloadRewardedAd());
+    }
+  }, []);
 
   useEffect(() => {
     let active = true;
 
     async function hydrate() {
-      const [best, previousRun, storedSettings] = await Promise.all([
+      const [best, previousRun, storedSettings, savedSession, stats] = await Promise.all([
         loadBestScore(),
         loadLastRunScore(),
         loadSettings(),
+        loadSavedSession(),
+        loadStats(),
       ]);
       if (!active) {
         return;
       }
-      if (best > 0) {
-        hydrateBest(best);
-      }
       setComparisonScore(previousRun);
       updateSettings(storedSettings);
       setShowOnboarding(!storedSettings.onboardingSeen);
+      const statsWithDay = recordPlayDay(stats);
+      setPlayerStats(statsWithDay);
+      if (statsWithDay.lastPlayedDate !== stats.lastPlayedDate) {
+        void saveStats(statsWithDay);
+      }
+
+      if (savedSession) {
+        restoreSession(savedSession);
+        if (best > savedSession.game.best) {
+          hydrateBest(best);
+        }
+      } else if (best > 0) {
+        hydrateBest(best);
+      }
+
       hydrated.current = true;
       setAppReady(true);
     }
@@ -88,7 +131,14 @@ export default function Home() {
     return () => {
       active = false;
     };
-  }, [hydrateBest, updateSettings]);
+  }, [hydrateBest, restoreSession, updateSettings]);
+
+  useEffect(() => {
+    if (!hydrated.current) {
+      return;
+    }
+    void saveSavedSession(session);
+  }, [session]);
 
   useEffect(() => {
     if (!hydrated.current) {
@@ -104,9 +154,14 @@ export default function Home() {
       (game.status === "lost" || game.status === "won")
     ) {
       void saveLastRunScore(game.score);
+      setPlayerStats((current) => {
+        const next = recordGameCompleted(current, game.score, highestTile);
+        void saveStats(next);
+        return next;
+      });
     }
     previousStatus.current = game.status;
-  }, [game.status, game.score]);
+  }, [game.status, game.score, highestTile]);
 
   useEffect(() => {
     if (!moveFeedback) {
@@ -124,6 +179,14 @@ export default function Home() {
 
     if (moveFeedback.milestone) {
       setActiveMilestone(moveFeedback.milestone);
+    }
+
+    if (moveFeedback.merged) {
+      setPlayerStats((current) => {
+        const next = recordMerge(current);
+        void saveStats(next);
+        return next;
+      });
     }
   }, [moveFeedback]);
 
@@ -159,6 +222,7 @@ export default function Home() {
   useKeyboardControls(guardedMove);
 
   const isNewBest = game.score > 0 && game.score >= game.best;
+  const gameEnded = game.status === "lost" || game.status === "won";
 
   const panGesture = useMemo(
     () =>
@@ -197,54 +261,68 @@ export default function Home() {
       <StatusBar style="light" />
       {appReady ? (
       <View style={styles.container}>
-        <ScoreHeader
-          best={game.best}
-          canUndo={canUndo}
-          isNewBest={isNewBest}
-          onNewGame={handleNewGameRequest}
-          onOpenSettings={() => setSettingsOpen(true)}
-          onUndo={undo}
-          reduceMotion={settings.reduceMotion}
-          score={game.score}
-        />
+        <View
+          pointerEvents={gameEnded ? "none" : "auto"}
+          style={[styles.gameShell, gameEnded && styles.gameShellDimmed]}
+        >
+          <ScoreHeader
+            best={game.best}
+            isNewBest={isNewBest}
+            onNewGame={handleNewGameRequest}
+            onOpenSettings={() => setSettingsOpen(true)}
+            onUndoPress={requestUndo}
+            reduceMotion={settings.reduceMotion}
+            score={game.score}
+            undoPending={rewardedUndoPending}
+            undoState={undoState}
+          />
 
-        <GestureDetector gesture={panGesture}>
-          <View
-            accessibilityLabel="Game board. Swipe or use arrow keys to move tiles."
-            style={styles.boardWrap}
-          >
-            <AnimatedGameBoard
-              reduceMotion={settings.reduceMotion}
-              shakeToken={shakeToken}
-              size={boardSize}
-              tiles={tiles}
-            />
-            <ScorePop
-              points={moveFeedback?.pointsGained ?? 0}
-              reduceMotion={settings.reduceMotion}
-              token={scorePopToken}
-            />
-            <MilestoneToast
-              milestone={activeMilestone}
-              onDone={() => {
-                setActiveMilestone(null);
-                clearMoveFeedback();
-              }}
-              reduceMotion={settings.reduceMotion}
-            />
-            <GameOverlay
-              best={game.best}
-              lastRunScore={comparisonScore}
-              onContinue={continuePlaying}
-              onRestart={() => {
-                setComparisonScore(game.score);
-                newGame();
-              }}
-              score={game.score}
-              status={game.status}
-            />
-          </View>
-        </GestureDetector>
+          <GestureDetector gesture={panGesture}>
+            <View
+              accessibilityLabel="Game board. Swipe or use arrow keys to move tiles."
+              style={styles.boardWrap}
+            >
+              <AnimatedGameBoard
+                reduceMotion={settings.reduceMotion}
+                shakeToken={shakeToken}
+                size={boardSize}
+                tiles={tiles}
+              />
+              <ScorePop
+                points={moveFeedback?.pointsGained ?? 0}
+                reduceMotion={settings.reduceMotion}
+                token={scorePopToken}
+              />
+              <MilestoneToast
+                milestone={activeMilestone}
+                onDone={() => {
+                  setActiveMilestone(null);
+                  clearMoveFeedback();
+                }}
+                reduceMotion={settings.reduceMotion}
+              />
+            </View>
+          </GestureDetector>
+        </View>
+
+        {gameEnded ? (
+          <GameOverlay
+            best={game.best}
+            highestTile={highestTile}
+            lastRunScore={comparisonScore}
+            moveCount={moveCount}
+            onContinue={continuePlaying}
+            onResumeUndo={requestUndo}
+            onRestart={() => {
+              setComparisonScore(game.score);
+              newGame();
+            }}
+            resumeUndoPending={rewardedUndoPending}
+            resumeUndosRemaining={resumeUndosRemaining}
+            score={game.score}
+            status={game.status}
+          />
+        ) : null}
       </View>
       ) : null}
 
@@ -252,6 +330,7 @@ export default function Home() {
         onChange={handleSettingsChange}
         onClose={() => setSettingsOpen(false)}
         settings={settings}
+        stats={playerStats}
         visible={settingsOpen}
       />
 
@@ -291,6 +370,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 20,
     paddingVertical: 8,
+    position: "relative",
+  },
+  gameShell: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  gameShellDimmed: {
+    opacity: 0.32,
   },
   boardWrap: {
     alignSelf: "center",

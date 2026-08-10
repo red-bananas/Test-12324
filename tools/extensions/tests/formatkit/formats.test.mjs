@@ -103,3 +103,42 @@ describe('FormatKit syntax highlight', () => {
     assert.match(html, /<span class="tok-string">"FormatKit"<\/span>/);
   });
 });
+
+describe('FormatKit custom formatting fixes', () => {
+  let kit;
+
+  before(() => {
+    kit = loadFormatKit();
+  });
+
+  it('formats SQL with proper line breaks on keywords', () => {
+    const rawSql = 'select name, id from users where active = 1';
+    const formatted = kit.formats.sql.format(rawSql, 2);
+    assert.match(formatted, /SELECT name,\s*id\nFROM users\nWHERE active = 1/i);
+  });
+
+  it('preserves comments in properties files', () => {
+    const rawProps = '# App settings\napp.name=FormatKit\n\n# Database settings\ndb.host=localhost';
+    const formatted = kit.formats.properties.format(rawProps);
+    assert.match(formatted, /# App settings/);
+    assert.match(formatted, /# Database settings/);
+    assert.match(formatted, /app.name=FormatKit/);
+    assert.match(formatted, /db.host=localhost/);
+  });
+
+  it('preserves whitespace in quoted CSV cells', () => {
+    const rawCsv = '" hello ", " world "';
+    const parsed = kit.formats.csv.parse(rawCsv);
+    assert.deepEqual(parsed, [[' hello ', ' world ']]);
+  });
+
+  it('highlights large JSON without producing broken nested span tags', () => {
+    const largeObj = {};
+    for (let i = 0; i < 100; i++) {
+      largeObj[`key_${i}`] = i;
+    }
+    const html = kit.highlight.render(JSON.stringify(largeObj, null, 2), 'json');
+    assert.doesNotMatch(html, /class=<span/);
+    assert.doesNotMatch(html, /class="tok-<span/);
+  });
+});

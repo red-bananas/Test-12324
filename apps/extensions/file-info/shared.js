@@ -1,5 +1,5 @@
-/** Shared helpers for content script and popup (no imports; load before other scripts). */
-const FileInfoShared = {
+/** Shared helpers for content script and popup. Idempotent: safe to inject many times. */
+var FileInfoShared = (typeof window !== 'undefined' && window.FileInfoShared) || {
   gcd(a, b) {
     const x = Math.abs(Math.floor(a));
     const y = Math.abs(Math.floor(b));
@@ -42,6 +42,12 @@ const FileInfoShared = {
     return blocked.some((p) => url.startsWith(p));
   },
 
+  isLocalFileUrl(url) {
+    return typeof url === 'string' && url.startsWith('file://');
+  },
+
+  FILE_URL_ORIGIN: 'file:///*',
+
   canDownloadUrl(url, type) {
     if (!url) return false;
     if (url.startsWith('file://')) return false;
@@ -59,5 +65,36 @@ const FileInfoShared = {
     }
     const ext = fileInfo?.fileExtension && fileInfo.fileExtension !== 'unknown' ? fileInfo.fileExtension : 'bin';
     return `download-${fileInfo?.type || 'file'}.${ext}`;
+  },
+
+  /** Escape a string for safe use inside an HTML attribute. */
+  escapeAttr(value) {
+    return String(value ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  },
+
+  /** Build an <img> tag with dimensions when known. Returns null if no URL. */
+  buildImgTag(info) {
+    if (!info?.url) return null;
+    const src = this.escapeAttr(info.url);
+    const w = Number(info.width);
+    const h = Number(info.height);
+    const dims = w && h && !Number.isNaN(w) && !Number.isNaN(h) ? ` width="${w}" height="${h}"` : '';
+    const alt = this.escapeAttr(info.fileName || '');
+    return `<img src="${src}"${dims} alt="${alt}">`;
+  },
+
+  /** Build a Markdown image. Returns null if no URL. */
+  buildMarkdownImage(info) {
+    if (!info?.url) return null;
+    const alt = (info.fileName || 'image').replace(/[\[\]]/g, '');
+    return `![${alt}](${info.url})`;
+  },
+
+  /** Build a CSS background-image rule. Returns null if no URL. */
+  buildCssBackground(info) {
+    if (!info?.url) return null;
+    return `background-image: url("${info.url}");`;
   }
 };
+
+if (typeof window !== 'undefined') window.FileInfoShared = FileInfoShared;

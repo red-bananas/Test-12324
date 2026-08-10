@@ -106,7 +106,8 @@ Do this once before the first automated submit.
 
 2. **Set up → App content**
    - Privacy policy URL (above)
-   - Ads declaration: **No** (Phase 1 — update when AdMob ships)
+   - Ads declaration: **Yes, contains ads** (when shipping Phase 2 build with rewarded undo)
+   - Advertising ID: **Yes** (AdMob)
    - Content rating: complete IARC questionnaire (expect **Everyone** / PEGI 3)
    - Target audience: not primarily children under 13 (unless you target kids)
    - Data safety: **No data collected** (offline, local storage only)
@@ -241,6 +242,44 @@ Download builds: [expo.dev](https://expo.dev) → Projects → Tile Merge → Bu
 - [ ] Store listing text + screenshots uploaded (can be draft before first AAB)
 - [ ] GitHub secrets `EXPO_TOKEN` + `GOOGLE_PLAY_SERVICE_ACCOUNT_KEY` set
 - [ ] Tag `tile-merge@v*` pushed
+
+---
+
+## AdMob IDs
+
+| ID | Value |
+|----|-------|
+| App ID | `ca-app-pub-8557764165565608~1296387874` |
+| Rewarded undo (production) | `ca-app-pub-8557764165565608/6357142860` |
+
+Production ad units load only when `EXPO_PUBLIC_USE_PRODUCTION_ADS=true` (EAS **production** profile). Preview/internal builds use **Google test IDs** automatically.
+
+---
+
+## Ad testing (do not click your own ads)
+
+1. Build preview APK: `npm run build:preview` (uses **test ad units** — safe to click)
+2. Install on device — **not Expo Go** (AdMob requires native build)
+3. Use all free undos → tap **Watch ad → Undo**
+4. Confirm **Test Ad** label on the video; complete ad → undo applies
+5. **Never** click ads on a production build you are testing yourself — risk of AdMob invalid-traffic ban
+6. For production verification: register device as test device in AdMob, limit impressions
+
+See [`.cursor/rules/admob-testing.mdc`](../../../.cursor/rules/admob-testing.mdc) for agent/dev rules.
+
+---
+
+## Ads release checklist (Play Console)
+
+When shipping first build with real ads:
+
+- [ ] EAS **production** build (`EXPO_PUBLIC_USE_PRODUCTION_ADS=true`)
+- [ ] **Advertising ID** declaration → Yes
+- [ ] **Manifest:** `com.google.android.gms.permission.AD_ID` in `app.json` → `expo.android.permissions` (required when declaration is Yes; `validate:mobile` checks this)
+- [ ] **Ads declaration** → Yes, contains ads
+- [ ] **Data safety** updated for ad SDK data collection
+- [ ] **Privacy policy** deployed (`docs/privacy/tile-merge.html` → GitHub Pages)
+- [ ] Submit policy + new AAB together via Publishing overview
 
 ---
 

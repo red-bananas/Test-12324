@@ -9,6 +9,7 @@
     "file-info": {
       "dir": "apps/extensions/file-info",
       "displayName": "File Info",
+      "chromeWebStoreId": "mjddfbocnhlabkjnggpcpaecchngebgk",
       "extensionIdSecret": "FILE_INFO_EXTENSION_ID"
     },
     "formatkit": {

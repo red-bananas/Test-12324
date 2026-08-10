@@ -21,6 +21,7 @@ const projects = Object.entries(apps)
 const defaultSlug = slugFilter ?? Object.keys(apps)[0];
 const defaultApp = apps[defaultSlug];
 const defaultAppDir = resolveAppDir(defaultApp);
+const webPort = defaultApp.webPort ?? 8081;
 
 export default defineConfig({
   testDir: path.join(__dirname, 'tests/e2e'),
@@ -29,9 +30,9 @@ export default defineConfig({
   reporter: process.env.CI ? 'github' : 'list',
   projects,
   webServer: {
-    command: 'npx expo start --web --port 8081',
+    command: `npx expo start --web --port ${webPort}`,
     cwd: defaultAppDir,
-    url: 'http://127.0.0.1:8081',
+    url: `http://127.0.0.1:${webPort}`,
     reuseExistingServer: !process.env.CI,
     timeout: 180000,
     env: {
