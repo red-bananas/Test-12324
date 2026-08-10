@@ -12,9 +12,22 @@ from PIL import Image, ImageDraw, ImageFont
 PLAY_PHONE = (1080, 1920)  # 9:16 portrait
 PLAY_FEATURE = (1024, 500)
 PLAY_ICON = (512, 512)
-BG = (28, 27, 34)  # #1c1b22
-ACCENT = (255, 122, 89)
 RESAMPLE = Image.Resampling.LANCZOS
+
+APP_GRAPHICS: dict[str, dict[str, object]] = {
+    "tile-merge": {
+        "bg": (28, 27, 34),
+        "accent": (255, 122, 89),
+        "feature_title": "Merge Tiles",
+        "feature_subtitle": "Offline puzzle · undo · rewarded resume",
+    },
+    "image-to-pdf": {
+        "bg": (11, 13, 18),
+        "accent": (239, 83, 80),
+        "feature_title": "Free Image to PDF",
+        "feature_subtitle": "Offline · No watermark · No account",
+    },
+}
 
 
 def png_info(path: Path) -> str:
@@ -36,9 +49,9 @@ def assert_rgb_png(path: Path, expected: tuple[int, int]) -> None:
         raise SystemExit(f"{path.name}: bad PNG header ({info})")
 
 
-def phone_screenshot(src: Path) -> Image.Image:
+def phone_screenshot(src: Path, bg: tuple[int, int, int]) -> Image.Image:
     img = Image.open(src).convert("RGBA")
-    canvas = Image.new("RGBA", PLAY_PHONE, BG + (255,))
+    canvas = Image.new("RGBA", PLAY_PHONE, bg + (255,))
     scale = min(PLAY_PHONE[0] / img.width, PLAY_PHONE[1] / img.height) * 0.92
     new_size = (int(img.width * scale), int(img.height * scale))
     resized = img.resize(new_size, RESAMPLE)
@@ -48,8 +61,14 @@ def phone_screenshot(src: Path) -> Image.Image:
     return canvas.convert("RGB")
 
 
-def feature_graphic(icon: Path, title: str, subtitle: str) -> Image.Image:
-    canvas = Image.new("RGB", PLAY_FEATURE, BG)
+def feature_graphic(
+    icon: Path,
+    title: str,
+    subtitle: str,
+    bg: tuple[int, int, int],
+    accent: tuple[int, int, int],
+) -> Image.Image:
+    canvas = Image.new("RGB", PLAY_FEATURE, bg)
     draw = ImageDraw.Draw(canvas)
 
     icon_img = Image.open(icon).convert("RGBA")
@@ -65,10 +84,10 @@ def feature_graphic(icon: Path, title: str, subtitle: str) -> Image.Image:
         sub_font = ImageFont.load_default()
 
     draw.text((300, 160), title, fill=(245, 243, 239), font=title_font)
-    draw.text((300, 240), subtitle, fill=ACCENT, font=sub_font)
+    draw.text((300, 240), subtitle, fill=accent, font=sub_font)
 
-    # Decorative tile dots
-    for i, alpha in enumerate([ACCENT, (255, 154, 122), (61, 57, 72)]):
+    # Decorative dots
+    for i, alpha in enumerate([accent, tuple(min(255, c + 30) for c in accent), (61, 57, 72)]):
         r = 18
         cx = PLAY_FEATURE[0] - 120 - i * 36
         cy = PLAY_FEATURE[1] // 2
@@ -104,9 +123,13 @@ def prepare(slug: str) -> None:
     if not shots:
         raise SystemExit(f"No screenshot-*-source.png in {source}")
 
+    graphics = APP_GRAPHICS.get(slug, APP_GRAPHICS["tile-merge"])
+    bg = graphics["bg"]  # type: ignore[assignment]
+    accent = graphics["accent"]  # type: ignore[assignment]
+
     for i, src in enumerate(shots[:8], start=1):
         out = upload / f"screenshot-{i}-phone"
-        save_rgb(phone_screenshot(src), out)
+        save_rgb(phone_screenshot(src, bg), out)
         assert_rgb_png(out.with_suffix(".png"), PLAY_PHONE)
         print(f"OK  {out.name}.png {PLAY_PHONE}")
 
@@ -118,8 +141,10 @@ def prepare(slug: str) -> None:
 
     feature = feature_graphic(
         assets,
-        "Merge Tiles",
-        "Offline puzzle · undo · rewarded resume",
+        str(graphics["feature_title"]),
+        str(graphics["feature_subtitle"]),
+        bg,
+        accent,
     )
     feature_out = upload / "feature-graphic-1024x500"
     save_rgb(feature, feature_out)

@@ -5,10 +5,12 @@
     const result = [];
     let current = '';
     let inQuotes = false;
+    let wasQuoted = false;
 
     for (let i = 0; i < line.length; i += 1) {
       const ch = line[i];
       if (ch === '"') {
+        wasQuoted = true;
         if (inQuotes && line[i + 1] === '"') {
           current += '"';
           i += 1;
@@ -16,14 +18,15 @@
           inQuotes = !inQuotes;
         }
       } else if (ch === ',' && !inQuotes) {
-        result.push(current);
+        result.push({ value: current, quoted: wasQuoted });
         current = '';
+        wasQuoted = false;
       } else {
         current += ch;
       }
     }
-    result.push(current);
-    return result.map((cell) => cell.trim());
+    result.push({ value: current, quoted: wasQuoted });
+    return result.map((cell) => (cell.quoted ? cell.value : cell.value.trim()));
   }
 
   function parse(text) {

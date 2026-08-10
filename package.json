@@ -30,7 +30,10 @@
     "release:tile-merge": "powershell -ExecutionPolicy Bypass -File tools/mobile/github-release.ps1 -App tile-merge",
     "validate:mobile": "node tools/mobile/validate.mjs",
     "test:mobile": "node tools/mobile/test.mjs",
-    "test:e2e:mobile": "playwright test --config tools/mobile/playwright.config.mjs"
+    "test:e2e:mobile": "playwright test --config tools/mobile/playwright.config.mjs",
+    "dev:adb:connect": "powershell -ExecutionPolicy Bypass -File tools/mobile/adb-connect.ps1 -Launch",
+    "dev:adb:watch": "powershell -ExecutionPolicy Bypass -File tools/mobile/adb-watch.ps1",
+    "dev:reload:image-to-pdf": "powershell -ExecutionPolicy Bypass -File tools/mobile/dev-reload-image-to-pdf.ps1"
   },
   "devDependencies": {
     "@playwright/test": "1.55.1"

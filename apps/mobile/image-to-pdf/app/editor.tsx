@@ -23,13 +23,15 @@ import { exportPdf } from "../lib/pdf";
 import { deleteIfExists, savePdfToAppStorage } from "../lib/fs";
 import { addRecent } from "../lib/recents";
 import { loadExportSettings } from "../lib/settings";
+import { DEMO_PAGES, isScreenshotMode } from "../lib/screenshot-demo";
 import { clearSession, getSessionPages, setSessionPages } from "../lib/session";
 import { AppTheme, useAppTheme } from "../lib/theme";
 import { MAX_PAGES, type PdfPage } from "../lib/types";
 
 export default function EditorScreen() {
   const router = useRouter();
-  const { e2e } = useLocalSearchParams<{ e2e?: string }>();
+  const { e2e, screenshot } = useLocalSearchParams<{ e2e?: string; screenshot?: string }>();
+  const screenshotMode = isScreenshotMode(screenshot);
   const insets = useSafeAreaInsets();
   const { theme } = useAppTheme();
   const { showMessage, confirm } = useFeedback();
@@ -49,7 +51,7 @@ export default function EditorScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      if (e2e !== "1") {
+      if (e2e !== "1" && !screenshotMode) {
         const latestPages = getSessionPages();
         if (latestPages.length > 0) {
           setPages(latestPages);
@@ -61,14 +63,14 @@ export default function EditorScreen() {
         return true;
       });
       return () => subscription.remove();
-    }, [e2e, leaveEditor]),
+    }, [e2e, leaveEditor, screenshotMode]),
   );
 
   const bootstrappedRef = useRef(false);
 
   useEffect(() => {
-    if (e2e === "1") {
-      const fixture: PdfPage[] = [
+    if (e2e === "1" || screenshotMode) {
+      const fixture = screenshotMode ? DEMO_PAGES : [
         {
           id: "e2e-page-1",
           uri: "https://placehold.co/600x800/1c2230/6366f1/png?text=Page+1",
@@ -79,6 +81,9 @@ export default function EditorScreen() {
       ];
       setSessionPages(fixture);
       setPages(fixture);
+      if (screenshotMode) {
+        setSelectedIndex(1);
+      }
       return;
     }
     const initial = getSessionPages();
@@ -90,7 +95,7 @@ export default function EditorScreen() {
     }
     bootstrappedRef.current = true;
     setPages(initial);
-  }, [router, e2e]);
+  }, [router, e2e, screenshotMode]);
 
   const syncPages = (next: PdfPage[], nextSelectedIndex = selectedIndex) => {
     setPages(next);

@@ -19,7 +19,7 @@ import { formatFileSize, renamePdf, displayExportPath, deleteIfExists, isTempora
 import { addRecent, renameRecent } from "../lib/recents";
 import { clearSession } from "../lib/session";
 import { openFile, saveCopyToFiles, shareFile, showInFilesLocation, isBenignShareError } from "../lib/share";
-import { AppTheme, useAppTheme } from "../lib/theme";
+import { DEMO_SUCCESS, isScreenshotMode } from "../lib/screenshot-demo";
 
 export default function SuccessScreen() {
   const router = useRouter();
@@ -33,18 +33,21 @@ export default function SuccessScreen() {
     sizeBytes?: string;
     pageCount?: string;
     saved?: string;
+    screenshot?: string;
   }>();
+  const screenshotMode = isScreenshotMode(params.screenshot);
+  const demo = screenshotMode ? DEMO_SUCCESS : params;
 
-  const [name, setName] = useState(params.name ?? "document.pdf");
-  const [path, setPath] = useState(params.path ?? "");
-  const [saved, setSaved] = useState(params.saved === "1" || !isTemporaryExportPath(params.path ?? ""));
+  const [name, setName] = useState(demo.name ?? "document.pdf");
+  const [path, setPath] = useState(demo.path ?? "");
+  const [saved, setSaved] = useState(demo.saved === "1" || !isTemporaryExportPath(demo.path ?? ""));
   const [renameVisible, setRenameVisible] = useState(false);
   const [renameDraft, setRenameDraft] = useState(name.replace(/\.pdf$/i, ""));
   const [renaming, setRenaming] = useState(false);
   const [saving, setSaving] = useState(false);
   const [keyboardOffset, setKeyboardOffset] = useState(0);
-  const sizeBytes = Number(params.sizeBytes ?? 0);
-  const pageCount = Number(params.pageCount ?? 0);
+  const sizeBytes = Number(demo.sizeBytes ?? 0);
+  const pageCount = Number(demo.pageCount ?? 0);
 
   useEffect(() => {
     if (!renameVisible) {

@@ -1,8 +1,9 @@
-slug: clone-mobile-game
+slug: clone-app
 lane: mobile
-origin: manual              # manual | pipeline
-displayName: Clone Mobile Game
-androidPackage: app.autoapp.clonemobilegame
-iosBundleId: app.autoapp.clonemobilegame
-status: scaffold            # scaffold | in-progress | shipped
-monetization: none          # none | tip-ware | freemium | rewarded-ads
+archetype: game
+origin: manual
+displayName: Clone App
+androidPackage: app.autoapp.cloneapp
+iosBundleId: app.autoapp.cloneapp
+status: scaffold
+monetization: rewarded-ads-phase2

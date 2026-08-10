@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFeedback } from "../components/Feedback";
 import { RecentList, type RecentPdfAction } from "../components/RecentList";
 import { triggerTapHaptic } from "../lib/haptics";
 import { pickImagesFromGallery, warmGalleryPicker } from "../lib/picker";
 import { loadRecents, sortRecentsDesc } from "../lib/recents";
+import { DEMO_RECENTS, isScreenshotMode } from "../lib/screenshot-demo";
 import { clearSession, setSessionPages } from "../lib/session";
 import { openFile, saveCopyToFiles, shareFile, showInFilesLocation, isBenignShareError } from "../lib/share";
 import { AppTheme, useAppTheme } from "../lib/theme";
@@ -15,6 +16,8 @@ import type { RecentPdf } from "../lib/types";
 
 export default function HubScreen() {
   const router = useRouter();
+  const { screenshot } = useLocalSearchParams<{ screenshot?: string }>();
+  const screenshotMode = isScreenshotMode(screenshot);
   const insets = useSafeAreaInsets();
   const { theme } = useAppTheme();
   const { showToast, showMessage } = useFeedback();
@@ -22,8 +25,12 @@ export default function HubScreen() {
   const [recents, setRecents] = useState<RecentPdf[]>([]);
 
   const refreshRecents = useCallback(async () => {
+    if (screenshotMode) {
+      setRecents(DEMO_RECENTS);
+      return;
+    }
     setRecents(sortRecentsDesc(await loadRecents()));
-  }, []);
+  }, [screenshotMode]);
 
   useEffect(() => {
     warmGalleryPicker();

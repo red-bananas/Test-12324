@@ -6,6 +6,13 @@
       "androidPackage": "app.autoapp.tilemerge",
       "playStoreTrack": "internal"
     },
+    "image-toolkit": {
+      "dir": "apps/mobile/image-toolkit",
+      "displayName": "PixShrink",
+      "androidPackage": "app.autoapp.pixshrink",
+      "playStoreTrack": "internal",
+      "webPort": 8091
+    },
     "image-to-pdf": {
       "dir": "apps/mobile/image-to-pdf",
       "displayName": "Image to PDF",

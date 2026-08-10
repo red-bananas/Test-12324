@@ -25,6 +25,7 @@ import {
 import { useFeedback } from "../components/Feedback";
 import { triggerTapHaptic } from "../lib/haptics";
 import { getSessionPages, setSessionPages } from "../lib/session";
+import { DEMO_PAGES, isScreenshotMode } from "../lib/screenshot-demo";
 import { AppTheme, useAppTheme } from "../lib/theme";
 import type { PdfPage } from "../lib/types";
 
@@ -117,8 +118,15 @@ function makeHandleResponder(
 export default function CropScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { index } = useLocalSearchParams<{ index?: string }>();
-  const pages = useMemo(() => getSessionPages(), []);
+  const { index, screenshot } = useLocalSearchParams<{ index?: string; screenshot?: string }>();
+  const screenshotMode = isScreenshotMode(screenshot);
+  const pages = useMemo(() => {
+    if (screenshotMode) {
+      setSessionPages(DEMO_PAGES);
+      return DEMO_PAGES;
+    }
+    return getSessionPages();
+  }, [screenshotMode]);
   const initialIndex = Math.min(Math.max(0, Number(index ?? 0)), Math.max(0, pages.length - 1));
   const [selectedIndex, setSelectedIndex] = useState(initialIndex);
   const page = pages[selectedIndex];
@@ -138,10 +146,16 @@ export default function CropScreen() {
   draftsRef.current = drafts;
 
   useEffect(() => {
-    if (pages.length === 0) {
+    if (!screenshotMode && pages.length === 0) {
       router.replace("/");
     }
-  }, [pages.length, router]);
+  }, [pages.length, router, screenshotMode]);
+
+  useEffect(() => {
+    if (screenshotMode && working) {
+      setCropState({ x: 0.08, y: 0.12, width: 0.72, height: 0.68 });
+    }
+  }, [screenshotMode, working?.pageId]);
 
   useEffect(() => {
     let active = true;

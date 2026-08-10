@@ -1,99 +1,82 @@
 # Auto-App strategy
 
-North star for the monorepo: ship useful products that **earn** — via player-positive ads, fair Pro/SaaS tiers, or tips — while we learn, then automate and innovate. Be creative and open across categories; be realistic about reach.
+North star: ship **Play Store mobile apps** (games + utilities) that **earn** via player-positive ads, while learning and iterating fast with Cursor agents.
+
+## Current focus (2026)
+
+| Priority | Lane | Status |
+|----------|------|--------|
+| **Primary** | `apps/mobile/` | Active — tile-merge first ship, then utilities |
+| Maintenance | `apps/extensions/` | Existing apps only; no new extension factory work |
+| Archived | `apps/web/` | No new web development |
+
+**Not in scope now:** Python `auto-app` pipeline automation. The factory is **skills + hooks + scaffolding + CI**, not headless agents.
 
 ## Target problem
 
-Solo builders waste time re-explaining product intent, picking stacks, and wiring release tooling. Auto-App is the **factory**: one repo for web tools, browser extensions, and mobile games/apps, with CI/CD and (later) an autonomous pipeline. We use the internet + AI agents to research, design, build, and monetize efficiently.
+Solo builder wastes time re-explaining product intent, ad strategy, device testing, and Play Store prep. Auto-App is the **mobile factory**: research → spec → build → test on USB device → store → monitor → iterate.
 
 ## Revenue-first principle
 
-Every product declares a monetization model **before** build, via [`.cursor/skills/monetization/`](.cursor/skills/monetization/). We earn three ways and mix them per product:
+Every mobile app declares monetization **before** build via [`.cursor/skills/monetization/`](.cursor/skills/monetization/) and [`.cursor/skills/mobile-ads-strategy/`](.cursor/skills/mobile-ads-strategy/).
 
-| Model | User pays with | Typical product |
-|-------|----------------|-----------------|
-| **Rewarded ads** (player-positive, opt-in) | Attention | Casual games, high-session utilities |
-| **Freemium / SaaS** | Money | Tools that save time/money, pro workflows |
-| **Tip-ware** ("buy me a coffee") | Goodwill | Loved one-job tools where ads/Pro feel wrong |
+Default for casual games: **rewarded opt-in ads** + capped interstitials + optional remove-ads IAP. Phase 1 = no ads (trust); Phase 2 = monetize.
 
-**The model is the easy part — distribution and retention are the bottleneck.** Reach × retention × intent × yield; design every product so users *want* the paying moment (rewarding ads, valuable Pro), never dark patterns.
+See [`monetization/revenue-models.md`](.cursor/skills/monetization/revenue-models.md) for realistic eCPM targets.
 
 ## Approach
 
-1. **Manual-first (now)** — research and build in Cursor; agent follows [`product-builder`](.cursor/skills/product-builder/) + [`monetization`](.cursor/skills/monetization/).
-2. **Be open-minded** — any category, simple to complex; learn from proven products; same job, better UX/privacy/niche; never copy brand assets.
-3. **Revenue + reach portfolio** — ship a few earners and grow their distribution before experimental categories.
-4. **Automate later** — pipeline discovers, specs, and builds into the same `apps/` paths.
-5. **Innovate last** — new categories only after repeat ship velocity is proven.
+1. **Manual-first** — Cursor agents follow [`mobile-dev-cycle`](.cursor/skills/mobile-dev-cycle/SKILL.md).
+2. **Human reviewer** at spec approval, device QA, and store submit.
+3. **USB dev builds** (`expo run:android --device`) for daily native testing — not Expo Go-only.
+4. **Spec-driven** — approved `docs/specs/{slug}.md` before code.
+5. **Memory** — `docs/solutions/` after every painful debug or store rejection.
+6. **Automate later** — pipeline optional; not gating revenue.
 
-## Users
+## Tech stack
 
-| User | Need |
-|------|------|
-| Builder (you) | Fast research → spec → ship with minimal re-explaining |
-| End users | Free, fast, private utilities that solve one job well |
-| Future pipeline | Approved candidates that pass tractability filters |
+- **Expo-managed React Native** (SDK 54+) — not Expo Go sandbox; dev builds + EAS for Play Store.
+- **Package manager:** npm (not pnpm until shared `packages/` workspace exists).
+- **New dependencies:** human approval before `npm install` anything not in scaffold `package.json`.
 
-## Lanes
-
-| Lane | Path | Distribution | Cash-cow potential |
-|------|------|--------------|-------------------|
-| Extensions | `apps/extensions/` | Chrome Web Store | **High** — low ops, repeat installs |
-| Web tools | `apps/web/` | SEO, shareable URLs | **Medium** — needs niche + time |
-| Mobile games | `apps/mobile/` | Expo Go, APK, stores later | **Lower** short-term — learning + ads |
-
-## Key metrics (90-day walking skeleton)
+## Key metrics (90-day)
 
 | Metric | Target |
 |--------|--------|
-| Shipped products (manual) | 3+ (1 per lane or 3 extensions) |
-| Extensions with CWS listing | 3+ maintained |
-| Weekly release cadence | 1 improvement or 1 new micro-product |
-| Pipeline runs (automated) | Optional; not gating revenue yet |
-
-## Revenue thesis
-
-- **Phase 1:** Ship polished core + chosen model (rewarded ads / free Pro funnel / tip link) → installs, reviews, trust.
-- **Phase 2:** Turn on monetization at scale — rewarded ads + Remove-ads IAP on games, Pro tier on tools, ads on web traffic.
-- **Phase 3:** Portfolio cross-promotion and distribution loops (shareable modes, extension ↔ web tool for same job).
-
-Revenue is **not** automatic from the repo — it follows distribution and polish. See [`monetization/revenue-models.md`](.cursor/skills/monetization/revenue-models.md) for realistic eCPM/conversion targets; plan Phase-1 in tens of dollars, not thousands.
+| Mobile apps through full cycle | 2+ (tile-merge live + 1 new) |
+| Spec with ad placement map | 100% |
+| USB dev build before store submit | 100% |
+| Weekly improvement or new app | 1 |
 
 ## Tracks of work
 
-### Track A — Portfolio (manual + Cursor)
+### Track A — Mobile factory (active)
 
-- [x] Monorepo: `apps/`, `scaffolds/`, extension CI/release
-- [x] Product-builder skill in daily use
-- [x] Tile Merge (`apps/mobile/tile-merge/`) — Jest + web E2E + Maestro flow
-- [x] Mobile CI: `mobile-ci.yml`, `tools/mobile/`, `mobile-testing` skill
-- [ ] Play Store internal listing for Tile Merge — [PLAY_STORE.md](apps/mobile/tile-merge/PLAY_STORE.md)
-- [x] Mobile release workflow (`mobile-release.yml`) + EAS submit to internal track
-- [ ] Sudoku mobile
-- [ ] Per-lane `app.yaml` + CI for web/mobile
+- [x] Monorepo, mobile CI, tile-merge reference app
+- [x] Mobile release workflow (EAS → Play internal/production)
+- [ ] Tile Merge Play Store production listing
+- [ ] Mobile dev factory skills + scaffold rebuild — [design spec](docs/superpowers/specs/2026-08-02-mobile-dev-factory-design.md)
+- [ ] Second mobile app through full cycle
 
-### Track B — Automation (pipeline)
+### Track B — Automation (deferred)
 
-- [x] Discover, seed, build, deploy stages (walking skeleton)
-- [ ] Respect `origin: manual` — do not wipe manual apps
-- [ ] Extension lane in pipeline (optional)
+- Pipeline stages exist but **not used** for mobile factory workflow
+- Revisit when manual cycle is proven on 3+ apps
 
-### Track C — Distribution
+### Track C — Extensions / web (maintenance / archived)
 
-- [x] Extension zip + CWS publish workflow
-- [ ] Store listing templates per extension
-- [ ] Web: Vercel deploy per app
+- Extensions: maintain utc-clock-pro, formatkit, file-info
+- Web: archived
 
-## Principles (non-negotiable)
+## Principles
 
-- Client-only for web v1 unless user requests backend
-- Distinct branding on all clones
-- Tests and validate scripts must pass before "done"
+- Distinct branding; no trademark clones
+- Tests + validate must pass before "done"
 - Engagement through usefulness, not dark patterns
+- Never click production AdMob ads in dev — test units only
 
 ## Related docs
 
-- [AGENTS.md](AGENTS.md) — repo paths and commands
-- [.cursor/skills/product-builder/SKILL.md](.cursor/skills/product-builder/SKILL.md) — how to think before building
-- [.cursor/skills/monetization/SKILL.md](.cursor/skills/monetization/SKILL.md) — how each product earns
-- [README.md](README.md) — quick start
+- [AGENTS.md](AGENTS.md)
+- [docs/superpowers/specs/2026-08-02-mobile-dev-factory-design.md](docs/superpowers/specs/2026-08-02-mobile-dev-factory-design.md)
+- [.cursor/skills/mobile-dev-cycle/SKILL.md](.cursor/skills/mobile-dev-cycle/SKILL.md)

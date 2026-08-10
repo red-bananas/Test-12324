@@ -12,8 +12,9 @@
     return `<span class="tok-${className}">${text}</span>`;
   }
 
-  const SLOT_START = 0xe010;
-  const SLOT_END = 0xe05f;
+  const SLOT_START = 0xe000;
+  const SLOT_END = 0xf8ff;
+
 
   function slotToken(id) {
     return String.fromCharCode(SLOT_START + id);
@@ -35,7 +36,7 @@
       html = html.replace(pattern, (match) => mark(className, match));
     });
 
-    html = html.replace(/[\uE010-\uE05F]/g, (ch) => slots[ch.charCodeAt(0) - SLOT_START]);
+    html = html.replace(/[\uE000-\uF8FF]/g, (ch) => slots[ch.charCodeAt(0) - SLOT_START]);
     return html;
   }
 
@@ -77,6 +78,16 @@
     ]);
   }
 
+  function highlightSql(text) {
+    return withSlots(text, [
+      [/\b(SELECT|FROM|WHERE|JOIN|INNER|LEFT|RIGHT|FULL|OUTER|ON|AND|OR|NOT|IN|IS|NULL|AS|ORDER|BY|GROUP|HAVING|LIMIT|OFFSET|INSERT|INTO|VALUES|UPDATE|SET|DELETE|CREATE|TABLE|PRIMARY|KEY|UNION|ALL|DISTINCT|CASE|WHEN|THEN|ELSE|END)\b/gi, 'key'],
+      [/"([^"\\]|\\.)*"/g, 'string'],
+      [/'([^'\\]|\\.)*'/g, 'string'],
+      [/\b-?\d+(?:\.\d+)?\b/g, 'number'],
+      [/([(),;=<>!+-/*])/g, 'punct'],
+    ]);
+  }
+
   function render(text, formatId) {
     if (!text) return '';
     switch (formatId) {
@@ -86,6 +97,8 @@
         return highlightYaml(text);
       case 'xml':
         return highlightXml(text);
+      case 'sql':
+        return highlightSql(text);
       default:
         return highlightGeneric(text);
     }

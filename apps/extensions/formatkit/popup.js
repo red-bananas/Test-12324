@@ -27,12 +27,19 @@
   const toast = document.getElementById('toast');
   const settingsDialog = document.getElementById('settingsDialog');
   const indentSetting = document.getElementById('indentSetting');
+  const sortKeysSetting = document.getElementById('sortKeysSetting');
   const themeToggleBtn = document.getElementById('themeToggleBtn');
 
   const LINE_HEIGHT = 20;
   const EDITOR_PAD = '12px 14px 12px 10px';
 
   let settings = { ...window.FormatKitSettings.DEFAULTS };
+  let emptyStateDismissed = false;
+  let isTypingSession = false;
+  let typingDebounceTimer = null;
+  let lastInputLength = 0;
+  let lastWasDeleting = false;
+  let lastSavedContent = '';
   let searchIndex = -1;
   let saveTimer = null;
   let statusTimer = null;
@@ -283,7 +290,8 @@
   }
 
   function updateEmptyState() {
-    emptyState.classList.toggle('hidden', Boolean(editor.value.trim()));
+    const shouldHide = Boolean(editor.value.trim()) || emptyStateDismissed;
+    emptyState.classList.toggle('hidden', shouldHide);
   }
 
   function updateHistoryButtons() {
@@ -349,9 +357,16 @@
 
   function tryFormatSilently() {
     try {
-      const { output } = window.FormatKitRegistry.formatAuto(editor.value, indent());
+      const format = getResolvedFormat();
+      let output;
+      if (format.id === 'json' && settings.sortKeys) {
+        output = format.sortKeys(editor.value, indent());
+      } else {
+        output = format.format(editor.value, indent());
+      }
       if (output !== editor.value) {
         editor.value = output;
+        lastSavedContent = output;
         lastHighlightText = '';
         lastEditorHeight = 0;
         refreshHighlight();
@@ -374,6 +389,7 @@
     }
 
     editor.value = value;
+    lastSavedContent = value;
     lastHighlightText = '';
     lastEditorHeight = 0;
     lastLinesArray = [];
@@ -389,7 +405,13 @@
 
   function runFormat() {
     try {
-      const { output } = window.FormatKitRegistry.formatAuto(editor.value, indent());
+      const format = getResolvedFormat();
+      let output;
+      if (format.id === 'json' && settings.sortKeys) {
+        output = format.sortKeys(editor.value, indent());
+      } else {
+        output = format.format(editor.value, indent());
+      }
       setEditorValue(output, { recordUndo: true, action: 'format', skipAutoFormat: true });
       showToast('Formatted');
     } catch (error) {
@@ -427,6 +449,7 @@
 
   function restoreEditorContent(value) {
     editor.value = value;
+    lastSavedContent = value;
     lastHighlightText = '';
     lastEditorHeight = 0;
     lastLinesArray = [];
@@ -437,6 +460,7 @@
   }
 
   function undoLast() {
+    isTypingSession = false;
     const previous = window.FormatKitHistory.undo(editor.value);
     if (previous === null) {
       showToast('Nothing to undo');
@@ -448,6 +472,7 @@
   }
 
   function redoLast() {
+    isTypingSession = false;
     const next = window.FormatKitHistory.redo(editor.value);
     if (next === null) {
       showToast('Nothing to redo');
@@ -518,6 +543,7 @@
     if (editor.value.trim() && !window.confirm('Clear all editor content?')) {
       return;
     }
+    emptyStateDismissed = false;
     setEditorValue('', { recordUndo: true, action: 'clear', skipAutoFormat: true });
     showToast('Cleared');
     editor.focus();
@@ -659,22 +685,32 @@
 
   function openSettings() {
     indentSetting.value = String(clampIndent(settings.indent));
+    sortKeysSetting.checked = Boolean(settings.sortKeys);
     settingsDialog.showModal();
   }
 
   async function saveSettingsFromDialog() {
     const nextIndent = clampIndent(indentSetting.value);
     indentSetting.value = String(nextIndent);
-    settings = await window.FormatKitSettings.save({ indent: nextIndent });
+    settings = await window.FormatKitSettings.save({
+      indent: nextIndent,
+      sortKeys: sortKeysSetting.checked,
+    });
     lastHighlightFormat = '';
     refreshHighlight();
     showToast('Settings saved');
+    if (editor.value.trim()) {
+      runFormat();
+    }
   }
 
   async function init() {
     await window.FormatKitHistory.pruneLog();
     settings = await window.FormatKitSettings.load();
-    editor.value = settings.content || '';
+    if (!editor.value.trim()) {
+      editor.value = settings.content || '';
+    }
+    lastSavedContent = editor.value;
     sourceFormat.value = settings.sourceFormat || 'auto';
     targetFormat.value = settings.targetFormat || 'yaml';
     applyTheme(settings.theme);
@@ -735,17 +771,37 @@
     scheduleHighlight();
     scheduleStatus();
     scheduleSave();
+
+    // Unified history undo/redo: log keyboard edits on word/delete boundaries
+    const currentLength = editor.value.length;
+    const isDeleting = currentLength < lastInputLength;
+    if (isDeleting !== lastWasDeleting) {
+      isTypingSession = false;
+    }
+    lastInputLength = currentLength;
+    lastWasDeleting = isDeleting;
+
+    if (!isTypingSession) {
+      window.FormatKitHistory.pushUndo(lastSavedContent);
+      updateHistoryButtons();
+      isTypingSession = true;
+    }
+
+    // Spacing characters (spaces, tabs, newlines) close current typing session
+    const lastChar = editor.value[editor.selectionStart - 1];
+    if (lastChar && /\s/.test(lastChar)) {
+      isTypingSession = false;
+    }
+
+    clearTimeout(typingDebounceTimer);
+    typingDebounceTimer = setTimeout(() => {
+      isTypingSession = false;
+    }, 1000);
+
+    lastSavedContent = editor.value;
   });
 
-  editor.addEventListener('wheel', (event) => {
-    const canScrollY = editorPane.scrollHeight > editorPane.clientHeight;
-    const canScrollX = editorPane.scrollWidth > editorPane.clientWidth;
-    if (!canScrollY && !canScrollX) return;
-    editorPane.scrollTop += event.deltaY;
-    editorPane.scrollLeft += event.deltaX;
-    event.preventDefault();
-    syncScroll();
-  }, { passive: false });
+  // Native wheel scroll handles browser smooth/inertial scroll automatically
 
   editorPane.addEventListener('scroll', syncScroll, { passive: true });
 
@@ -763,6 +819,21 @@
       syncLineLayout({ forceGutterRender: true });
     }, 100);
   }).observe(editorPane);
+
+  editorWrap.addEventListener('mousedown', (event) => {
+    if (event.target.id === 'emptyPasteBtn') return;
+    if (!emptyStateDismissed) {
+      emptyStateDismissed = true;
+      updateEmptyState();
+    }
+  });
+
+  editor.addEventListener('focus', () => {
+    if (!emptyStateDismissed) {
+      emptyStateDismissed = true;
+      updateEmptyState();
+    }
+  });
 
   editorPane.addEventListener('mousedown', (event) => {
     if (event.target === editor) return;

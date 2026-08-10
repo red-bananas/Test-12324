@@ -2,6 +2,7 @@
   "expo": {
     "name": "Image to PDF",
     "slug": "image-to-pdf",
+    "scheme": "app.autoapp.imagetopdf",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
@@ -19,7 +20,10 @@
     "android": {
       "package": "app.autoapp.imagetopdf",
       "versionCode": 1,
-      "permissions": ["android.permission.CAMERA"],
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
@@ -48,6 +52,13 @@
           "photosPermission": "Allow Image to PDF to pick photos to convert into a PDF."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "6b6aaf12-0709-47dc-b46f-70db203a28cf"
+      }
+    },
+    "owner": "sajet-reev"
   }
 }

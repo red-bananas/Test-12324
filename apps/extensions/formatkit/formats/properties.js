@@ -21,6 +21,48 @@
     return result;
   }
 
+  function parseLines(text) {
+    const result = [];
+    let pendingComments = [];
+    const lines = text.split(/\r?\n/);
+    
+    lines.forEach((line, index) => {
+      const trimmed = line.trim();
+      if (!trimmed) {
+        pendingComments.push('');
+        return;
+      }
+      if (trimmed.startsWith('#') || trimmed.startsWith('!')) {
+        pendingComments.push(line);
+        return;
+      }
+      const eq = trimmed.indexOf('=');
+      if (eq === -1) {
+        throw new Error(`Invalid properties line ${index + 1}: missing "="`);
+      }
+      const key = trimmed.slice(0, eq).trim();
+      let value = trimmed.slice(eq + 1).trim();
+      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+      result.push({
+        key,
+        value,
+        comments: pendingComments,
+      });
+      pendingComments = [];
+    });
+    
+    if (pendingComments.length > 0) {
+      result.push({
+        key: null,
+        value: null,
+        comments: pendingComments,
+      });
+    }
+    return result;
+  }
+
   function escapeValue(value) {
     const str = String(value ?? '');
     if (/[\s=#:]/u.test(str)) {
@@ -30,17 +72,27 @@
   }
 
   function format(text) {
-    const data = parse(text);
-    return Object.keys(data)
-      .sort()
-      .map((key) => `${key}=${escapeValue(data[key])}`)
-      .join('\n');
+    const entries = parseLines(text);
+    const kvEntries = entries.filter((e) => e.key !== null);
+    const trailingEntry = entries.find((e) => e.key === null);
+    
+    kvEntries.sort((a, b) => a.key.localeCompare(b.key));
+    
+    const formattedLines = [];
+    kvEntries.forEach((entry) => {
+      entry.comments.forEach((c) => formattedLines.push(c));
+      formattedLines.push(`${entry.key}=${escapeValue(entry.value)}`);
+    });
+    if (trailingEntry) {
+      trailingEntry.comments.forEach((c) => formattedLines.push(c));
+    }
+    return formattedLines.join('\n');
   }
 
   function minify(text) {
-    const data = parse(text);
-    return Object.keys(data)
-      .map((key) => `${key}=${escapeValue(data[key])}`)
+    const entries = parseLines(text).filter((e) => e.key !== null);
+    return entries
+      .map((entry) => `${entry.key}=${escapeValue(entry.value)}`)
       .join('\n');
   }
 

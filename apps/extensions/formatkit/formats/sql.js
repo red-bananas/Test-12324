@@ -17,57 +17,66 @@
   }
 
   function format(text, indent) {
+    const pad = (depth) => ' '.repeat(indent * depth);
+    const keywordRegex = /\b(SELECT|FROM|WHERE|JOIN|LEFT\s+JOIN|RIGHT\s+JOIN|INNER\s+JOIN|GROUP\s+BY|ORDER\s+BY|HAVING|LIMIT|OFFSET|SET|VALUES|ON|AND|OR)\b/i;
+    const rawChunks = text.replace(/\s+/g, ' ').trim().split(/(\(|\)|,|;|\b(?:SELECT|FROM|WHERE|JOIN|LEFT\s+JOIN|RIGHT\s+JOIN|INNER\s+JOIN|GROUP\s+BY|ORDER\s+BY|HAVING|LIMIT|OFFSET|SET|VALUES|ON|AND|OR)\b)/i);
+    
     let depth = 0;
-    const pad = () => ' '.repeat(indent * depth);
     const lines = [];
-    const chunks = text.replace(/\s+/g, ' ').trim().split(/(\(|\)|,|;)/);
+    let currentLine = '';
 
-    let buffer = '';
-    chunks.forEach((chunk) => {
+    rawChunks.forEach((chunk) => {
       const part = chunk.trim();
       if (!part) return;
 
+      const upper = part.toUpperCase();
+      const startsNewLine = /^(SELECT|FROM|WHERE|JOIN|LEFT\s+JOIN|RIGHT\s+JOIN|INNER\s+JOIN|GROUP\s+BY|ORDER\s+BY|HAVING|LIMIT|OFFSET|SET|VALUES|AND|OR)$/.test(upper);
+
       if (part === '(') {
-        buffer += '(';
+        if (currentLine.trim()) lines.push(pad(depth) + currentLine.trim());
+        lines.push(pad(depth) + '(');
         depth += 1;
+        currentLine = '';
         return;
       }
       if (part === ')') {
+        if (currentLine.trim()) lines.push(pad(depth) + currentLine.trim());
         depth = Math.max(0, depth - 1);
-        buffer += ')';
+        lines.push(pad(depth) + ')');
+        currentLine = '';
         return;
       }
       if (part === ',') {
-        lines.push(pad() + buffer.trim() + ',');
-        buffer = '';
+        currentLine = currentLine.trim() + ',';
+        lines.push(pad(depth) + currentLine);
+        currentLine = '';
         return;
       }
       if (part === ';') {
-        if (buffer.trim()) lines.push(pad() + buffer.trim());
+        if (currentLine.trim()) lines.push(pad(depth) + currentLine.trim());
         lines.push(';');
-        buffer = '';
+        currentLine = '';
         depth = 0;
         return;
       }
 
-      const tokens = part.split(' ');
-      const formatted = tokens.map(upperKeyword).join(' ');
-      if (/^(SELECT|INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|WITH)$/i.test(formatted)) {
-        if (buffer.trim()) lines.push(pad() + buffer.trim());
-        buffer = formatted + ' ';
-        return;
+      if (startsNewLine) {
+        if (currentLine.trim()) lines.push(pad(depth) + currentLine.trim());
+        currentLine = upperKeywordsInClause(part) + ' ';
+      } else {
+        currentLine += (currentLine.endsWith(' ') || currentLine === '' ? '' : ' ') + upperKeywordsInClause(part);
       }
-      if (/^(FROM|WHERE|JOIN|INNER JOIN|LEFT JOIN|RIGHT JOIN|GROUP BY|ORDER BY|HAVING|SET|VALUES|ON)$/i.test(formatted)) {
-        if (buffer.trim()) lines.push(pad() + buffer.trim());
-        lines.push(pad() + formatted);
-        buffer = ' ';
-        return;
-      }
-      buffer += (buffer.endsWith(' ') ? '' : ' ') + formatted;
     });
 
-    if (buffer.trim()) lines.push(pad() + buffer.trim());
+    if (currentLine.trim()) {
+      lines.push(pad(depth) + currentLine.trim());
+    }
+
     return lines.join('\n').trim();
+  }
+
+  function upperKeywordsInClause(clause) {
+    return clause.split(' ').map(upperKeyword).join(' ');
   }
 
   function minify(text) {

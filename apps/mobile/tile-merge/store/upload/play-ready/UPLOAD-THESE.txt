@@ -1,0 +1,15 @@
+Upload to Play Console -> Grow users -> Store presence -> Main store listing
+
+App icon (512x512):
+  play-ready/store-icon-512.png
+
+Feature graphic (1024x500):
+  play-ready/feature-graphic-1024x500.png
+
+Phone screenshots (upload in this order):
+  1. screenshot-1-phone.png  "Swipe. Merge. Beat your best." (gameplay)
+  2. screenshot-2-phone.png  "Offline. No account." (settings/trust)
+  3. screenshot-3-phone.png  "One more move to a new high score" (mid-game)
+
+Source finals (do not upload raw sizes):
+  final 1.png, final 2.png, final 3.png, final feature.png, final icon.png
