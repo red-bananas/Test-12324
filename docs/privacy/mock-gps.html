@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mock GPS — Privacy Policy</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f7f8fb;
+        --text: #171923;
+        --muted: #5f6675;
+        --accent: #c62828;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0b0d12;
+          --text: #f7f8fb;
+          --muted: #a8adba;
+          --accent: #ff8a80;
+        }
+      }
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        line-height: 1.6;
+        background: var(--bg);
+        color: var(--text);
+      }
+      main {
+        max-width: 42rem;
+        margin: 0 auto;
+        padding: 2rem 1.25rem 3rem;
+      }
+      h1 {
+        font-size: 1.75rem;
+        margin-bottom: 0.25rem;
+      }
+      .updated {
+        color: var(--muted);
+        margin-top: 0;
+      }
+      h2 {
+        font-size: 1.125rem;
+        margin-top: 2rem;
+        color: var(--accent);
+      }
+      a {
+        color: var(--accent);
+      }
+      ul {
+        padding-left: 1.25rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Mock GPS — Privacy Policy</h1>
+      <p class="updated"><strong>Last updated:</strong> August 2026</p>
+
+      <p>
+        Mock GPS : Change Location lets you drop a test-location pin on a map and
+        supply Android mock locations for app testing — only after you select
+        Mock GPS under Developer Options. We do not operate accounts, ads, or
+        analytics in the current release.
+      </p>
+
+      <h2>What we collect</h2>
+      <p>
+        <strong>We do not collect, upload to our servers, or sell your personal
+        data.</strong> Mock GPS has no developer-operated backend.
+      </p>
+      <ul>
+        <li>
+          Saved places, recent places, last session duration, and active-session
+          state are stored locally on your device in Android SharedPreferences.
+        </li>
+        <li>
+          Successful place-search results are cached privately on your device for
+          up to 24 hours (maximum 100 queries).
+        </li>
+        <li>
+          Map tiles may be cached locally in the app cache while you view the map.
+        </li>
+        <li>No account, email, or login is required.</li>
+        <li>No analytics or advertising SDKs in the current release.</li>
+      </ul>
+
+      <h2>Network use</h2>
+      <p>
+        The app uses the internet for map display and place search only. Requests
+        may include:
+      </p>
+      <ul>
+        <li>
+          <strong>OpenStreetMap tiles</strong> (<a href="https://tile.openstreetmap.org/">tile.openstreetmap.org</a>)
+          — map tile coordinates as you pan and zoom.
+        </li>
+        <li>
+          <strong>Photon place search</strong> (<a href="https://photon.komoot.io/">photon.komoot.io</a>)
+          — text you enter for search and coordinates used for reverse lookup.
+        </li>
+        <li>
+          <strong>Android Geocoder</strong> — if Photon is unavailable or returns
+          no results, the same search input may be processed by your device’s
+          built-in geocoding service.
+        </li>
+      </ul>
+      <p>
+        We do not receive or store these requests on our own servers. Third-party
+        tile and search providers may log requests according to their policies.
+      </p>
+
+      <h2>Location permission</h2>
+      <ul>
+        <li>
+          <strong>Foreground location</strong> — only when you tap the GPS button
+          on the map to centre on your current position. The coordinate becomes your
+          selected candidate and is not kept as an active or recent mock location
+          unless you start a session.
+        </li>
+        <li>
+          <strong>Background location</strong> — never requested.
+        </li>
+        <li>
+          While a mock-location session is active, Android shows a persistent
+          notification with a Stop action. Stopping the session removes Mock GPS’s
+          test providers and restores normal location behaviour.
+        </li>
+      </ul>
+
+      <h2>Other permissions</h2>
+      <ul>
+        <li>
+          <strong>Mock location</strong> — required so Android lists Mock GPS in
+          Developer Options as the mock-location app.
+        </li>
+        <li>
+          <strong>Notifications</strong> — to show the active-session notification.
+        </li>
+        <li>
+          <strong>Foreground service</strong> — to run user-initiated mock-location
+          sessions while the notification is visible.
+        </li>
+        <li>
+          <strong>Internet</strong> — for map tiles and place search as described
+          above.
+        </li>
+      </ul>
+
+      <h2>Third-party services</h2>
+      <p>
+        <strong>Current version:</strong> No ads and no developer analytics. Map
+        tiles and place search rely on the third-party services listed above.
+      </p>
+      <p>
+        <strong>Future updates:</strong> If we add optional ads or other online
+        features, we will update this page before they ship.
+      </p>
+
+      <h2>Children's privacy</h2>
+      <p>
+        Mock GPS does not knowingly collect personal information from children.
+      </p>
+
+      <h2>Changes</h2>
+      <p>We will update this page if our data practices change.</p>
+
+      <h2>Contact</h2>
+      <p>
+        Open an issue on the
+        <a href="https://github.com/red-bananas/Test-12324">Test-12324 repository</a>
+        or contact the developer through the Google Play listing.
+      </p>
+    </main>
+  </body>
+</html>
