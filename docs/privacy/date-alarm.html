@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Date Alarm — Privacy Policy</title>
+    <title>Future Alarm — Privacy Policy</title>
     <style>
       :root {
         color-scheme: light dark;
@@ -55,19 +55,19 @@
   </head>
   <body>
     <main>
-      <h1>Date Alarm — Privacy Policy</h1>
+      <h1>Future Alarm — Privacy Policy</h1>
       <p class="updated"><strong>Last updated:</strong> August 2026</p>
 
       <p>
-        Date Alarm helps you schedule dependable alarms on future dates and
+        Future Alarm helps you schedule dependable alarms on future dates and
         flexible recurrences on your Android device. Core alarms work offline with
-        no account. We do not collect, upload, or sell your personal data in the
-        current release.
+        no account. We do not sell your personal data. The optional voice-command
+        feature processes a spoken command as described below.
       </p>
 
       <h2>What we collect</h2>
-      <p><strong>We do not collect, upload to our servers, or sell your personal data.</strong></p>
-      <p>Date Alarm has no developer-operated backend in v1.</p>
+      <p><strong>We do not collect data on developer-operated servers or sell your personal data.</strong></p>
+      <p>Future Alarm has no developer-operated backend.</p>
       <ul>
         <li>
           Alarm schedules (labels, dates, times, recurrence rules, sound choices,
@@ -89,9 +89,22 @@
 
       <h2>Network use</h2>
       <p>
-        <strong>Core alarms do not require the internet.</strong> Date Alarm does
-        not request network access for scheduling, ringing, or managing your
-        alarms in the current release.
+        <strong>Core alarms do not require the internet.</strong> Scheduling,
+        ringing, and manually managing alarms remain on the device.
+      </p>
+      <p>
+        If you tap Voice command, Android's speech-recognition service converts
+        your command to text. Depending on your phone, that service may process
+        audio on-device or remotely. Future Alarm sends only the resulting text
+        transcript, not recorded audio, to Google's Gemini Developer API through
+        Firebase AI Logic. Gemini extracts the requested date, time, label, and
+        recurrence. Future Alarm validates the response locally and shows it for
+        confirmation before saving an alarm.
+      </p>
+      <p>
+        Firebase App Check with Google Play Integrity sends app and device
+        integrity information to Google to protect the Gemini endpoint from
+        unauthorized use. Voice commands normally require internet access.
       </p>
 
       <h2>Permissions</h2>
@@ -122,16 +135,27 @@
           <strong>Set alarm</strong> — to respond to Android alarm intents and
           assistant voice commands that create alarms in the app.
         </li>
+        <li>
+          <strong>Microphone</strong> — requested only after you start an in-app
+          voice command.
+        </li>
+        <li>
+          <strong>Internet</strong> — used for optional voice-command processing
+          and related integrity checks.
+        </li>
       </ul>
       <p>
-        Date Alarm does not request calendar, location, contacts, or broad storage
+        Future Alarm does not request calendar, location, contacts, or broad storage
         permissions in v1.
       </p>
 
       <h2>Third-party services</h2>
       <p>
-        <strong>Current version:</strong> No ads, no cloud sync, and no
+        <strong>Current version:</strong> No ads, no cloud alarm sync, and no
         third-party analytics. Alarm scheduling and ringing run on your device.
+        The optional voice feature uses Android speech recognition, Firebase AI
+        Logic, Firebase App Check, Google Play Integrity, and the Gemini Developer
+        API.
       </p>
       <p>
         <strong>Future updates:</strong> If we add optional ads, cloud backup, or
@@ -140,7 +164,7 @@
 
       <h2>Children's privacy</h2>
       <p>
-        Date Alarm does not knowingly collect personal information from children.
+        Future Alarm does not knowingly collect personal information from children.
       </p>
 
       <h2>Changes</h2>
